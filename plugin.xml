@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android" id="com.ppw.camera" version="1.0.0">
+  <name>ppw_camera_plugin</name>
+  <description>custom camera plugin</description>
+  <js-module name="ppw_camera_plugin" src="www/ppw_camera_plugin.js">
+    <clobbers target="navigator.ppw_camera_plugin" />
+  </js-module>
+  <platform name="ios">
+    <config-file parent="/*" target="config.xml">
+      <feature name="ppw_camera_plugin">
+        <param name="ios-package" value="ppw_camera_plugin" />
+      </feature>
+    </config-file>
+    <source-file src="src/ios/ppw_camera_plugin.m" />
+  </platform>
+  <platform name="android">
+    <config-file parent="/*" target="res/xml/config.xml">
+      <feature name="ppw_camera_plugin">
+        <param name="android-package" value="com.ppw.camera.ppw_camera_plugin" />
+      </feature>
+    </config-file>
+    <config-file parent="/*" target="AndroidManifest.xml" />
+    <source-file src="src/android/ppw_camera_plugin.java" target-dir="src/com/ppw/camera/ppw_camera_plugin" />
+  </platform>
+</plugin>
