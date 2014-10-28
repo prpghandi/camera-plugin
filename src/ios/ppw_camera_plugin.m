@@ -6,12 +6,12 @@
   // Member variables go here.
 }
 
-- (void)coolMethod:(CDVInvokedUrlCommand*)command;
+- (void)openCamera:(CDVInvokedUrlCommand*)command;
 @end
 
 @implementation CDVppw_camera_plugin
 
-- (void)coolMethod:(CDVInvokedUrlCommand*)command
+- (void)openCamera:(CDVInvokedUrlCommand*)command
 {
     CDVPluginResult* pluginResult = nil;
     NSString* echo = [command.arguments objectAtIndex:0];
