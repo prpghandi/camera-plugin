@@ -1,25 +1,87 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android" id="com.ppw.camera" version="1.0.0">
-  <name>ppw_camera_plugin</name>
-  <description>custom camera plugin</description>
-  <js-module name="ppw_camera_plugin" src="www/ppw_camera_plugin.js">
-    <clobbers target="navigator.ppw_camera_plugin" />
-  </js-module>
-  <platform name="ios">
-    <config-file parent="/*" target="config.xml">
-      <feature name="ppw_camera_plugin">
-        <param name="ios-package" value="ppw_camera_plugin" />
-      </feature>
+	<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+		xmlns:android="http://schemas.android.com/apk/res/android"
+		xmlns:rim="http://www.blackberry.com/ns/widgets"
+		id="com.appnovation.ppw-camera"
+		version="1.0.0">
+
+	<name>PPW Camera</name>
+	<description>PhoneGap plugin to support a custom camera overlay</description>
+	<author>Appnovation Technologies</author>
+
+	<info>
+		Property Pres Wizards custom camera overlay plugin
+	</info>
+
+	<js-module src="www/ppw_camera.js" name="PPWCamera">
+		<clobbers target="navigator.PPWCamera" />
+	</js-module>
+
+	<engines>
+		<engine name="cordova" version=">=3.1.0" />
+	</engines>
+
+	<platform name="ios">
+
+		<config-file target="config.xml" parent="/*">
+			<feature name="PPWCamera">
+				<param name="ios-package" value="PPWCamera" />
+			</feature>
+		</config-file>
+
+		<header-file src="src/ios/MBProgressHUD.h" />
+		<source-file src="src/ios/MBProgressHUD.m" />
+
+		<header-file src="src/ios/PPWCamera.h" />
+		<source-file src="src/ios/PPWCamera.m" />
+
+		<header-file src="src/ios/PPWCameraViewController.h" />
+		<source-file src="src/ios/PPWCameraViewController.m" />
+		<resource-file src="src/ios/PPWCameraViewController.xib" />
+
+		<resource-file src="src/shared/flaticon_ppw_camera.ttf" />
+
+    <config-file target="*-Info.plist" parent="UIAppFonts">
+			<array>
+				<string>flaticon_ppw_camera.ttf</string>
+			</array>
+    </config-file> 
+
+    <framework src="QuartzCore.framework" />
+    <framework src="UIKit.framework" />
+
+	</platform>
+
+	<platform name="android">
+
+    <config-file target="AndroidManifest.xml" parent="/manifest/application">
+      <activity android:label="PPWCameraActivity" android:name="com.appnovation.ppw_camera.PPWCameraActivity" android:screenOrientation="landscape" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+      </activity>
     </config-file>
-    <source-file src="src/ios/ppw_camera_plugin.m" />
-  </platform>
-  <platform name="android">
-    <config-file parent="/*" target="res/xml/config.xml">
-      <feature name="ppw_camera_plugin">
-        <param name="android-package" value="com.ppw.camera.ppw_camera_plugin" />
-      </feature>
+
+    <config-file target="res/xml/config.xml" parent="/*">
+      <gap:feature name="PPWCamera">
+          <param name="android-package" value="com.appnovation.ppw_camera.PPWCamera"/>
+      </gap:feature>
     </config-file>
-    <config-file parent="/*" target="AndroidManifest.xml" />
-    <source-file src="src/android/ppw_camera_plugin.java" target-dir="src/com/ppw/camera/ppw_camera_plugin" />
-  </platform>
+
+    <source-file src="src/android/PPWCamera.java" target-dir="src/com/appnovation/ppw_camera" />
+    <source-file src="src/android/PPWCameraActivity.java" target-dir="src/com/appnovation/ppw_camera" />
+    <source-file src="src/android/PPWCameraPreview.java" target-dir="src/com/appnovation/ppw_camera" />
+    <source-file src="src/android/activity_ppw_camera.xml" target-dir="res/layout"/>
+
+    <config-file target="AndroidManifest.xml" parent="/manifest">
+	    <uses-permission android:name="android.permission.CAMERA" />
+	    <uses-feature android:name="android.hardware.camera" />
+	    <uses-feature android:name="android.hardware.camera.autofocus" />
+    </config-file>
+
+    <resource-file src="src/android/round_btn_large_ppw_camera.xml" target="res/drawable/round_btn_large_ppw_camera.xml" />
+    <resource-file src="src/android/round_btn_small_ppw_camera.xml" target="res/drawable/round_btn_small_ppw_camera.xml" />
+    <resource-file src="src/android/strings_ppw_camera.xml" target="res/values/strings_ppw_camera.xml" />
+
+    <resource-file src="src/shared/flaticon_ppw_camera.ttf" target="assets/flaticon_ppw_camera.ttf" />
+
+  </platform> 
+
 </plugin>
