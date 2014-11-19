@@ -75,8 +75,20 @@
         self.picker.showsCameraControls = NO;
         self.picker.allowsEditing = NO;
         self.picker.delegate = self;
-        self.picker.view.transform = CGAffineTransformMakeRotation(-M_PI/2);
-//        self.picker.view.userInteractionEnabled = NO;
+        if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad) {
+            switch ([[UIDevice currentDevice] orientation])
+            {
+                case UIDeviceOrientationPortrait:
+                case UIDeviceOrientationPortraitUpsideDown:
+                    self.picker.view.transform = CGAffineTransformMakeRotation(-M_PI/2);
+                    break;
+                default:
+                    break;
+            }
+        }
+        else {
+            self.picker.view.transform = CGAffineTransformMakeRotation(-M_PI/2);
+        }
     }
     return self;
 }

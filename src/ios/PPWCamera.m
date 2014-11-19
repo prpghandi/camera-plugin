@@ -30,8 +30,7 @@
             [self.viewController presentViewController:self.overlay animated:NO completion:nil];
         }
         else {
-            CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera not found"];
-            [self.commandDelegate sendPluginResult:result callbackId:self.latestCommand.callbackId];
+            [self sendError];
         }
     }
 }
@@ -51,22 +50,39 @@
 }
 
 -(BOOL)cameraAccessCheck {
-    switch ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo]) {
+    AVAuthorizationStatus a = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
+    switch (a) {
         case AVAuthorizationStatusAuthorized: {
             return YES;
         }
             break;
-        case AVAuthorizationStatusNotDetermined:
+        case AVAuthorizationStatusNotDetermined: {
+            [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo
+                                     completionHandler:^(BOOL granted) {
+                                         if (granted) {
+                                             [self openCamera:self.latestCommand];
+                                         }
+                                         else {
+                                             [self sendError];
+                                         }
+                                     }];
+            
+        }
+            break;
         case AVAuthorizationStatusRestricted:
         case AVAuthorizationStatusDenied:
         default: {
-            CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera Access - Denied"];
-            [self.commandDelegate sendPluginResult:result callbackId:self.latestCommand.callbackId];
+            [self sendError];
         }
             break;
     }
     
     return NO;
+}
+
+-(void)sendError {
+    CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera Error"];
+    [self.commandDelegate sendPluginResult:result callbackId:self.latestCommand.callbackId];
 }
 
 @end
