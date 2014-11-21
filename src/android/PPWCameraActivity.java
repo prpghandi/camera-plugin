@@ -118,14 +118,15 @@ public class PPWCameraActivity extends Activity {
         final Button flashButton = (Button) findViewById(getR("id","button_flash"));
         flashButton.setTypeface(font);
         final List<String> supportedFlash = params.getSupportedFlashModes();
-        if (supportedFlash.contains(Camera.Parameters.FLASH_MODE_AUTO)) {
-            flashButton.setText(getR("string","flash_auto_icon"));
-            params.setFlashMode(Camera.Parameters.FLASH_MODE_AUTO);
-        }
         if (supportedFlash == null || params.getFlashMode() == null) {
             flashButton.setVisibility(View.INVISIBLE); //hide if not supported
         }
         else {
+            if (supportedFlash.contains(Camera.Parameters.FLASH_MODE_AUTO)) {
+                flashButton.setText(getR("string","flash_auto_icon"));
+                params.setFlashMode(Camera.Parameters.FLASH_MODE_AUTO);
+            }
+
             mCamera.setParameters(params);
             flashButton.setOnClickListener(
                 new View.OnClickListener() {
