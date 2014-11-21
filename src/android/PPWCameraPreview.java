@@ -36,9 +36,26 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
         mCamFacing = cam.facing;
     }
 
+    public void clearCamera() {
+       if (mCamera != null) {
+           mCamera.stopPreview();
+           mCamera.release();
+           mCamera = null;
+       }
+    }
+
+    private Camera getCamInstance() {
+        if (mCamera != null) {
+            return mCamera;
+        }
+        mCamera = PPWCameraActivity.getCameraInstance();
+        return mCamera;
+    }
+
     public void surfaceCreated(SurfaceHolder holder) {
         // The Surface has been created, now tell the camera where to draw the preview.
         try {
+            mCamera = getCamInstance();
             setupCamera();
             mCamera.setPreviewDisplay(holder);
             mCamera.startPreview();
@@ -50,6 +67,7 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
 
     public void surfaceDestroyed(SurfaceHolder holder) {
         // empty. Take care of releasing the Camera preview in your activity.
+        clearCamera();
     }
 
     public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {

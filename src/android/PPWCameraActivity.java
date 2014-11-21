@@ -46,7 +46,7 @@ public class PPWCameraActivity extends Activity {
 
     private static final String SECRET_KEY = "password";
 
-    private Camera mCamera;
+    private static Camera mCamera;
     private PPWCameraPreview mPreview;
     private static HashMap<String,String> mDataOutput;
     private int mPhotoWidth;
@@ -70,11 +70,8 @@ public class PPWCameraActivity extends Activity {
         //icon font face
         Typeface font = Typeface.createFromAsset(getAssets(), "flaticon_ppw_camera.ttf");
 
-        // Create an instance of Camera
-        mCamera = getCameraInstance();
-
         // Create our Preview view and set it as the content of our activity.
-        mPreview = new PPWCameraPreview(this, mCamera);
+        mPreview = new PPWCameraPreview(this, getCameraInstance());
         FrameLayout preview = (FrameLayout) findViewById(getR("id","frame_camera_preview"));
         preview.addView(mPreview);
 
@@ -103,18 +100,19 @@ public class PPWCameraActivity extends Activity {
                         // get an image from the camera
                         if (takePictureMutex) {
                             Toast.makeText(PPWCameraActivity.this, "Saving...",Toast.LENGTH_SHORT).show();
-                            mCamera.takePicture(null, null, mPicture);
+                            getCameraInstance().takePicture(null, null, mPicture);
                             takePictureMutex = false;
                         }
                     } catch (Exception e) {
                         Log.d(TAG,"exception on picture taking "+e.getMessage());
+                        sendError();
                     }
                 }
             }
         );
 
         // Add a listener to the flash button
-        Camera.Parameters params = mCamera.getParameters();
+        Camera.Parameters params = getCameraInstance().getParameters();
         final Button flashButton = (Button) findViewById(getR("id","button_flash"));
         flashButton.setTypeface(font);
         final List<String> supportedFlash = params.getSupportedFlashModes();
@@ -127,12 +125,12 @@ public class PPWCameraActivity extends Activity {
                 params.setFlashMode(Camera.Parameters.FLASH_MODE_AUTO);
             }
 
-            mCamera.setParameters(params);
+            getCameraInstance().setParameters(params);
             flashButton.setOnClickListener(
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        Camera.Parameters params = mCamera.getParameters();
+                        Camera.Parameters params = getCameraInstance().getParameters();
                         String currentFlash = params.getFlashMode();
                         Log.d(TAG,"current flash "+currentFlash);
                         String nextFlash = currentFlash;
@@ -158,7 +156,7 @@ public class PPWCameraActivity extends Activity {
                         }
                         params.setFlashMode(nextFlash);
                         flashButton.setText(nextIcon);
-                        mCamera.setParameters(params);
+                        getCameraInstance().setParameters(params);
 
                         //update color
                         flashButton.setTextColor(nextColor);
@@ -323,16 +321,26 @@ public class PPWCameraActivity extends Activity {
         return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP,pixels,getResources().getDisplayMetrics());
     };
 
-    /** A safe way to get an instance of the Camera object. */
     public static Camera getCameraInstance(){
+        if (mCamera!=null) {
+            return mCamera;
+        }
+
         Camera c = null;
         try {
-            c = Camera.open(); // attempt to get a Camera instance
+            c = Camera.open();
+            mCamera = c;
         }
         catch (Exception e){
-            // Camera is not available (in use or does not exist)
+            Log.e(TAG, "failed to open Camera");
+            sendError();
         }
-        return c; // returns null if camera is unavailable
+        return c;
+    }
+
+    private static void sendError() {
+        PluginResult result = new PluginResult(PluginResult.Status.ERROR, "camera error");
+        PPWCamera.callbackContext.sendPluginResult(result);
     }
 
     private Camera.PictureCallback mPicture = new Camera.PictureCallback() {
@@ -396,6 +404,7 @@ public class PPWCameraActivity extends Activity {
 
             } catch (Exception e) {
                 Log.d(TAG, "File not found Error: " + e.getMessage());
+                sendError();
             }
             camera.stopPreview();
             camera.startPreview();
@@ -416,7 +425,7 @@ public class PPWCameraActivity extends Activity {
     }
 
     /*
-     * HMAC SHA-1 encoding
+     * HMAC SHA-512 encoding
      */
     private static String hmacSha512(String value, String key)
             throws UnsupportedEncodingException, NoSuchAlgorithmException,
@@ -444,13 +453,9 @@ public class PPWCameraActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
-        releaseCamera();              // release the camera immediately on pause event
-    }
-
-    private void releaseCamera(){
-        if (mCamera != null){
-            mCamera.release();        // release the camera for other applications
+        if (mPreview != null) {
             mCamera = null;
+            mPreview.clearCamera();            // release the camera immediately on pause event
         }
     }
 }

@@ -538,7 +538,7 @@
     return scaleImage;
 }
 
-#pragma mark - HMAC-SHA1 encoding
+#pragma mark - HMAC-SHA512 encoding
 
 - (NSString *)hexadecimalString:(NSData *)data {
     /* Returns hexadecimal string of NSData. Empty string if data is empty.   */
