@@ -174,8 +174,8 @@
         mPreviewHeight = [options[@"previewHeight"] intValue];
     if (options[@"encodingType"])
         mEncodingType = options[@"encodingType"];
-    if (options[@"qualitys"])
-        mQuality = [options[@"qualitys"] intValue];
+    if (options[@"quality"])
+        mQuality = [options[@"quality"] intValue];
     
     NSArray* overlay = options[@"overlay"];
     if (!overlay)
