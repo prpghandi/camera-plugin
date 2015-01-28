@@ -3,7 +3,7 @@
 		xmlns:android="http://schemas.android.com/apk/res/android"
 		xmlns:rim="http://www.blackberry.com/ns/widgets"
 		id="com.appnovation.ppw-camera"
-		version="1.0.0">
+		version="1.0.3">
 
 	<name>PPW Camera</name>
 	<description>PhoneGap plugin to support a custom camera overlay</description>
@@ -49,6 +49,7 @@
 
     <framework src="QuartzCore.framework" />
     <framework src="UIKit.framework" />
+    <framework src="AVFoundation.framework" />
 
 	</platform>
 
@@ -72,8 +73,10 @@
 
     <config-file target="AndroidManifest.xml" parent="/manifest">
 	    <uses-permission android:name="android.permission.CAMERA" />
+	    <uses-permission android:name="android.permission.FLASHLIGHT" />
 	    <uses-feature android:name="android.hardware.camera" />
 	    <uses-feature android:name="android.hardware.camera.autofocus" />
+	    <uses-feature android:name="android.hardware.camera.flash" />
     </config-file>
 
     <resource-file src="src/android/round_btn_large_ppw_camera.xml" target="res/drawable/round_btn_large_ppw_camera.xml" />

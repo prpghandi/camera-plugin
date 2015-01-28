@@ -13,14 +13,19 @@
 #import <UIKit/UIKit.h>
 #import <CommonCrypto/CommonDigest.h>
 #import <CommonCrypto/CommonHMAC.h>
+#import <AVFoundation/AVFoundation.h>
 
 #define SECRET_KEY @"password"
-
 #define CAMERA_ASPECT 1.3333333f //default camera aspect ratio 4:3
 
-#define FLASH_AUTO_ICON @"\ue000"
-#define FLASH_ON_ICON @"\ue001"
-#define FLASH_OFF_ICON @"\ue003"
+#define FLASH_ICON_AUTO @"\ue000"
+#define FLASH_ICON_ON @"\ue001"
+#define FLASH_ICON_OFF @"\ue003"
+
+#define FLASH_NAME_AUTO @"auto"
+#define FLASH_NAME_TORCH @"torch"
+#define FLASH_NAME_ON @"on"
+#define FLASH_NAME_OFF @"off"
 
 // This assigns a CGColor to a borderColor.
 @interface CALayer(XibConfiguration)
@@ -36,12 +41,102 @@
 @end
 
 //holder for carousel data
-@interface tagItem : NSObject
+@interface TagItem : NSObject
 @property(nonatomic,assign) int count; //item selected in carousel
 @property(strong,nonatomic) NSArray* value; //list of carousel items
 @property(strong,nonatomic) NSString* btn_id; //id from carousel button
 @end
-@implementation tagItem
+@implementation TagItem
+@end
+
+//flash data types
+typedef NS_ENUM(NSInteger, FlashDataType) {
+    kFlashDataTypeAuto,
+    kFlashDataTypeTorch,
+    kFlashDataTypeOn,
+    kFlashDataTypeOff,
+    kFlashDataTypeCount
+};
+
+//holder and methods for flash data
+@interface FlashData : NSObject
+-(FlashDataType)getNextType;
+-(void)setTypeByName:(NSString*)name;
+-(void)setType:(FlashDataType)type;
+-(void)updateButton:(UIButton*)b picker:(UIImagePickerController*)p;
+@property(nonatomic,assign) FlashDataType type;
+@property(strong,nonatomic) UIColor* color;
+@property(strong,nonatomic) NSString* icon;
+@property(nonatomic,assign) UIImagePickerControllerCameraFlashMode mode;
+@property(strong,nonatomic) NSString* name;
+@end
+@implementation FlashData
+-(FlashDataType)getNextType {
+    return (FlashDataType)(_type+1 >= kFlashDataTypeCount ? 0 : _type+1);
+}
+-(void)setTypeByName:(NSString *)name {
+    if ([name compare:FLASH_NAME_TORCH options:NSCaseInsensitiveSearch] == NSOrderedSame) {
+        [self setType:kFlashDataTypeTorch];
+    }
+    else if ([name compare:FLASH_NAME_ON options:NSCaseInsensitiveSearch] == NSOrderedSame) {
+        [self setType:kFlashDataTypeOn];
+    }
+    else if ([name compare:FLASH_NAME_OFF options:NSCaseInsensitiveSearch] == NSOrderedSame) {
+        [self setType:kFlashDataTypeOff];
+    }
+    else {
+        [self setType:kFlashDataTypeAuto];
+    }
+}
+-(void)setType:(FlashDataType)type {
+    switch (type) {
+        case kFlashDataTypeAuto:
+            _color = [UIColor whiteColor];
+            _icon = FLASH_ICON_AUTO;
+            _mode = UIImagePickerControllerCameraFlashModeAuto;
+            _name = FLASH_NAME_AUTO;
+            break;
+        case kFlashDataTypeTorch:
+            _color = [UIColor greenColor];
+            _icon = FLASH_ICON_ON;
+            _mode = UIImagePickerControllerCameraFlashModeOff;
+            _name = FLASH_NAME_TORCH;
+            break;
+        case kFlashDataTypeOn:
+            _color = [UIColor yellowColor];
+            _icon = FLASH_ICON_ON;
+            _mode = UIImagePickerControllerCameraFlashModeOn;
+            _name = FLASH_NAME_ON;
+            break;
+        case kFlashDataTypeOff:
+            _color = [UIColor darkGrayColor];
+            _icon = FLASH_ICON_OFF;
+            _mode = UIImagePickerControllerCameraFlashModeOff;
+            _name = FLASH_NAME_OFF;
+            break;
+        default:
+            break;
+    }
+    _type = type;
+}
+-(void)updateButton:(UIButton *)b picker:(UIImagePickerController*)p {
+    AVCaptureDevice *device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+    [device lockForConfiguration:nil];
+    if (kFlashDataTypeTorch == _type && [device isTorchModeSupported:AVCaptureTorchModeOn]) {
+        [device setTorchMode:AVCaptureTorchModeOn];
+        [device setFlashMode:AVCaptureFlashModeOn];
+    }
+    else {
+        [device setTorchMode:AVCaptureTorchModeOff];
+        [device setFlashMode:AVCaptureFlashModeOff];
+    }
+    [device unlockForConfiguration];
+    p.cameraFlashMode = _mode;
+    b.tag = _mode;
+    b.layer.borderUIColor = _color;
+    [b setTitleColor:_color forState:UIControlStateNormal];
+    [b setTitle:_icon forState:UIControlStateNormal];
+}
 @end
 
 @interface PPWCameraViewController () {
@@ -51,14 +146,14 @@
     float mPreviewHeight;
     NSString* mEncodingType;
     int mQuality;
-    
+    NSString* mFlashType;
     NSMutableArray* mDataOutput;
 }
-@property (strong, nonatomic) IBOutlet UIView *preview;
+@property (strong, nonatomic) UIView *preview;
 @property (strong, nonatomic) IBOutlet UIButton *flashBtn;
 @property (strong, nonatomic) IBOutlet UIButton *takePictureBtn;
+@property (strong, nonatomic) FlashData* flashBtnData;
 @end
-
 
 @implementation PPWCameraViewController
 
@@ -94,7 +189,6 @@
 }
 
 -(void)viewWillAppear:(BOOL)animated {
-    
     [super viewWillAppear:animated];
     _flashBtn.hidden = ![UIImagePickerController isFlashAvailableForCameraDevice:UIImagePickerControllerCameraDeviceRear];
 }
@@ -139,6 +233,14 @@
     
     self.preview.center = CGPointMake(screenWidth / 2, screenHeight / 2);
     self.picker.view.center = CGPointMake(self.preview.bounds.size.width / 2, self.preview.bounds.size.height / 2);
+    
+    //set flash type
+    _flashBtn.hidden = ![UIImagePickerController isFlashAvailableForCameraDevice:UIImagePickerControllerCameraDeviceRear];
+    _flashBtnData = [[FlashData alloc] init];
+    [_flashBtnData setTypeByName:mFlashType];
+    if (!_flashBtn.hidden) {
+        [_flashBtnData updateButton:_flashBtn picker:_picker];
+    }
 }
 
 -(void)dealloc
@@ -158,6 +260,7 @@
     mPreviewHeight = 480;
     mEncodingType = @"jpg";
     mQuality = 100;
+    mFlashType = FLASH_NAME_AUTO;
     mDataOutput = [[NSMutableArray alloc] init];
     
     //scroll through overlay options
@@ -176,6 +279,8 @@
         mEncodingType = options[@"encodingType"];
     if (options[@"quality"])
         mQuality = [options[@"quality"] intValue];
+    if (options[@"flashType"])
+        mFlashType = options[@"flashType"];
     
     NSArray* overlay = options[@"overlay"];
     if (!overlay)
@@ -205,13 +310,13 @@
         //setup carousel
         else if ([type rangeOfString:@"carousel"].length>0) {
             NSArray* value = item[@"value"];
-            tagItem* t = [[tagItem alloc] init];
+            TagItem* t = [[TagItem alloc] init];
             t.value = value;
             t.btn_id = item[@"id"];
             t.count = 0;
             NSString* initial = item[@"initial"];
             for(int i=0; i<[value count]; ++i) {
-                if (initial && [initial compare:value[i]] == NSOrderedSame) {
+                if (initial && [initial compare:value[i] options:NSCaseInsensitiveSearch] == NSOrderedSame) {
                     t.count = i;
                 }
             }
@@ -359,7 +464,7 @@
 
 -(void)carouselBtnPressed:(id)sender {
     UIButton* b = sender;
-    tagItem* t = mDataOutput[b.tag];
+    TagItem* t = mDataOutput[b.tag];
     t.count++;
     if (t.count>=[t.value count]) {
         t.count = 0;
@@ -381,57 +486,9 @@
     [self.plugin closeCamera];
 }
 - (IBAction)flashBtnPressed:(id)sender {
-
-    UIButton* b = sender;
-    NSString* title;
-    UIColor* color;
-    //choose next mode
-    switch (b.tag) {
-        case UIImagePickerControllerCameraFlashModeAuto:
-            b.tag = UIImagePickerControllerCameraFlashModeOn;
-            break;
-        case UIImagePickerControllerCameraFlashModeOn:
-            b.tag = UIImagePickerControllerCameraFlashModeOff;
-            break;
-        case UIImagePickerControllerCameraFlashModeOff:
-        default:
-            b.tag = UIImagePickerControllerCameraFlashModeAuto;
-            break;
-    }
-    
-    //choose new color and icon
-    switch (b.tag) {
-        case UIImagePickerControllerCameraFlashModeAuto:
-            color = [UIColor whiteColor];
-            title = FLASH_AUTO_ICON;
-            break;
-
-        case UIImagePickerControllerCameraFlashModeOff:
-            color = [UIColor darkGrayColor];
-            title = FLASH_OFF_ICON;
-            break;
-        case UIImagePickerControllerCameraFlashModeOn:
-        default:
-            color = [UIColor yellowColor];
-            title = FLASH_ON_ICON;
-            break;
-    }
-    self.picker.cameraFlashMode = b.tag;
-    b.layer.borderUIColor = color;
-    [b setTitleColor:color forState:UIControlStateNormal];
-    [b setTitle:title forState:UIControlStateNormal];
+    [_flashBtnData setType:[_flashBtnData getNextType]];
+    [_flashBtnData updateButton:_flashBtn picker:_picker];
 }
-//- (IBAction)switchCameraBtnPressed:(id)sender {
-//    switch (self.picker.cameraDevice) {
-//        case UIImagePickerControllerCameraDeviceRear:
-//            self.picker.cameraDevice = UIImagePickerControllerCameraDeviceFront;
-//            break;
-//        case UIImagePickerControllerCameraDeviceFront:
-//        default:
-//            self.picker.cameraDevice = UIImagePickerControllerCameraDeviceRear;
-//            break;
-//    }
-//}
 
 #pragma mark - UIImagePickerControllerDelegate
 
@@ -484,11 +541,12 @@
                                  @"lastModifiedDate":timestamp,
                                  @"size":[@([imageData length]) stringValue],
                                  @"type":mEncodingType,
-                                 @"hash":hash
+                                 @"hash":hash,
+                                 @"flashType":[_flashBtnData name]
                                  } mutableCopy];
         if ([mDataOutput count]>0) {
             NSMutableDictionary* data = [[NSMutableDictionary alloc] init];
-            for(tagItem* t in mDataOutput) {
+            for(TagItem* t in mDataOutput) {
                 [data setValue:t.value[t.count] forKey:t.btn_id];
             }
             [output setValue:data forKey:@"data"];
@@ -505,13 +563,15 @@
 
 - (UIImage*)resizeImage:(UIImage*)image;
 {
-    //crop
-//    UIGraphicsBeginImageContextWithOptions(self.preview.frame.size,YES,[UIScreen mainScreen].scale*(mPreviewWidth/self.preview.frame.size.width));
-//    [image drawInRect:self.picker.view.frame];
-//    UIImage* cropImage = UIGraphicsGetImageFromCurrentImageContext();
-//    UIGraphicsEndImageContext();
+    float previewRatio = mPreviewWidth / mPreviewHeight;
+    float width = CAMERA_ASPECT*mPhotoHeight;
+    float height = mPhotoHeight;
+    if (previewRatio > CAMERA_ASPECT) {
+        width = mPhotoWidth;
+        height = mPhotoWidth / CAMERA_ASPECT;
+    }
     
-    //down scale
+    //down scale and crop
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(mPhotoWidth,mPhotoHeight),YES,1);
     switch (image.imageOrientation) {
         case UIImageOrientationLeft:
@@ -525,7 +585,9 @@
         default:
             break;
     }
-    [image drawInRect:CGRectMake(0, 0, mPhotoWidth, mPhotoHeight)];
+    CGRect cropRect = CGRectMake((mPhotoWidth-width)*0.5f, (mPhotoHeight-height)*0.5f, width, height);
+    UIRectClip(cropRect);
+    [image drawInRect:cropRect];
     UIImage* scaleImage = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
     

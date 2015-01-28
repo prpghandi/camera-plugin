@@ -6,6 +6,10 @@ import android.hardware.Camera.Size;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.ScaleGestureDetector;
+import android.view.MotionEvent;
+import android.graphics.Rect;
+import java.util.ArrayList;
 
 import java.io.IOException;
 import java.util.List;
@@ -24,23 +28,32 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
     private Camera mCamera;
     private int mCamFacing;
 
+    //scale properties
+    private float mScaleFactor = 1.f;
+    private ScaleGestureDetector mScaleDetector;
+
     public PPWCameraPreview(Context context, Camera camera) {
         super(context);
         mCamera = camera;
+        mScaleDetector = new ScaleGestureDetector(context, new ScaleListener());
 
         // Install a SurfaceHolder.Callback so we get notified when the
         // underlying surface is created and destroyed.
         mHolder = getHolder();
         mHolder.addCallback(this);
+        mHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
         Camera.CameraInfo cam = new Camera.CameraInfo();
         mCamFacing = cam.facing;
     }
 
     public void clearCamera() {
        if (mCamera != null) {
-           mCamera.stopPreview();
-           mCamera.release();
-           mCamera = null;
+            if (mHolder != null) {
+                mHolder.removeCallback(this);
+            }
+            mCamera.stopPreview();
+            mCamera.release();
+            mCamera = null;
        }
     }
 
@@ -57,6 +70,12 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
         try {
             mCamera = getCamInstance();
             setupCamera();
+            Camera.Parameters p = mCamera.getParameters();
+            List<String> supportedFocusModes = p.getSupportedFocusModes();
+            if (supportedFocusModes.contains(Camera.Parameters.FOCUS_MODE_AUTO)) {
+                p.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+            }
+            mCamera.setParameters(p);
             mCamera.setPreviewDisplay(holder);
             mCamera.startPreview();
             PPWCameraActivity.takePictureMutex = true;
@@ -93,37 +112,11 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
         try {
             mCamera.setPreviewDisplay(mHolder);
             mCamera.startPreview();
-
+            PPWCameraActivity.takePictureMutex = true;
         } catch (Exception e){
             Log.d(TAG, "Error starting camera preview: " + e.getMessage());
         }
     }
-
-//    public void flipCamera() {
-//        if (mCamera != null) {
-//            mCamera.stopPreview();
-//            mCamera.release();
-//            mCamera = null;
-//        }
-//
-//        //swap the id of the camera to be used
-//        switch (mCamFacing) {
-//            case Camera.CameraInfo.CAMERA_FACING_BACK:
-//                mCamFacing = Camera.CameraInfo.CAMERA_FACING_FRONT;
-//                break;
-//            default:
-//                mCamFacing = Camera.CameraInfo.CAMERA_FACING_BACK;
-//                break;
-//        }
-//        try {
-//            mCamera = Camera.open(mCamFacing);
-//            setupCamera();
-//            mCamera.setPreviewDisplay(mHolder);
-//            mCamera.startPreview();
-//        } catch (IOException e) {
-//            Log.d(TAG, "Error setting camera preview: " + e.getMessage());
-//        }
-//    }
 
     protected Size determineBestSize(List<Camera.Size> sizes, int widthThreshold, double ratio) {
         Size bestSize = null;
@@ -172,21 +165,82 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
         mCamera.setParameters(parameters);
     }
 
-    /**
-     * Measure the view and its content to determine the measured width and the
-     * measured height.
-     */
+    private Rect focusArea(float x, float y) {
+        Rect touchRect = new Rect(
+            (int)(x - 100), 
+            (int)(y - 100), 
+            (int)(x + 100), 
+            (int)(y + 100));
+
+        final Rect targetFocusRect = new Rect(
+            touchRect.left * 2000/this.getWidth() - 1000,
+            touchRect.top * 2000/this.getHeight() - 1000,
+            touchRect.right * 2000/this.getWidth() - 1000,
+            touchRect.bottom * 2000/this.getHeight() - 1000);
+
+        return targetFocusRect;
+    }
+
     @Override
-    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        int height = MeasureSpec.getSize(heightMeasureSpec);
-        int width = MeasureSpec.getSize(widthMeasureSpec);
-
-        if (width > height * preview_aspect_ratio) {
-            width = (int) (height * preview_aspect_ratio + .5);
-        } else {
-            height = (int) (width / preview_aspect_ratio + .5);
+    public boolean onTouchEvent(MotionEvent event) {
+        mScaleDetector.onTouchEvent(event);
+        if(event.getAction() == MotionEvent.ACTION_DOWN && event.getPointerCount()==1) {
+            try {
+                mCamera.cancelAutoFocus();
+                Rect focusRect = focusArea(event.getX(), event.getY());
+                List<Camera.Area> focusList = new ArrayList<Camera.Area>();
+                Camera.Area focusArea = new Camera.Area(focusRect, 1000);
+                focusList.add(focusArea);
+                Camera.Parameters p = mCamera.getParameters();
+                if (p.getMaxNumFocusAreas()>0) {
+                    p.setFocusAreas(focusList);
+                }
+                if (p.getMaxNumMeteringAreas()>0) {
+                    p.setMeteringAreas(focusList);
+                }
+                mCamera.setParameters(p);
+                mCamera.autoFocus(new Camera.AutoFocusCallback() {
+                    @Override
+                    public void onAutoFocus(boolean success, Camera camera) {
+                        Camera.Parameters params = camera.getParameters();
+                        if (params.getFlashMode().compareToIgnoreCase(Camera.Parameters.FLASH_MODE_TORCH) == 0) {
+                            params.setFlashMode(Camera.Parameters.FLASH_MODE_OFF); //turn flash on/off to fix disabling itself on focus
+                            camera.setParameters(params);
+                            params.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
+                            camera.setParameters(params);
+                        }
+                        if (success) {
+                            camera.cancelAutoFocus();
+                        }
+                    }
+                });
+            } catch (Exception e) {
+                Log.d(TAG, "Tap focus error: " + e.getMessage());
+            }
         }
+        return true;
+    }
 
-        setMeasuredDimension(width, height);
+    public class ScaleListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
+        @Override
+        public boolean onScale(ScaleGestureDetector detector) {
+            Camera.Parameters p = mCamera.getParameters();
+            if (p.isZoomSupported()) {
+                mScaleFactor *= detector.getScaleFactor();
+                int maxZoom = p.getMaxZoom();
+                int nextZoom = (int)((mScaleFactor - 1)*maxZoom);
+                if ( nextZoom > maxZoom ) {
+                    nextZoom = p.getMaxZoom();
+                    mScaleFactor = 2;
+                }
+                if ( nextZoom < 0 ) {
+                    nextZoom = 0;
+                    mScaleFactor = 1;
+                }
+                p.setZoom(nextZoom);
+                mCamera.setParameters(p);
+            }
+            return true;
+        }
     }
 }

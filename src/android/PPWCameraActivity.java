@@ -19,11 +19,17 @@ import android.text.format.Formatter;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
+import android.view.MotionEvent;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.media.ThumbnailUtils;
+import android.view.SurfaceView;
+import android.view.WindowManager;
+import android.view.Display;
+import android.graphics.Point;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -43,8 +49,12 @@ import javax.crypto.spec.SecretKeySpec;
 public class PPWCameraActivity extends Activity {
 
     public static final String TAG = "PPWCameraActivity";
-
     private static final String SECRET_KEY = "password";
+
+    private static final String FLASH_NAME_AUTO = "auto";
+    private static final String FLASH_NAME_TORCH = "torch";
+    private static final String FLASH_NAME_ON = "on";
+    private static final String FLASH_NAME_OFF = "off";
 
     private static Camera mCamera;
     private PPWCameraPreview mPreview;
@@ -55,13 +65,24 @@ public class PPWCameraActivity extends Activity {
     private int mPreviewHeight;
     private String mEncodingType;
     private int mQuality;
+    private String mFlashType = null;
 
     public static boolean takePictureMutex = false;
+    public boolean init = false;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
+        init();
+    }
+
+    public void init() {
+        if (init) {
+            return;
+        }
+        init = true; //don't initialize more than once
+
         setContentView(getR("layout","activity_ppw_camera"));
 
         //output custom data
@@ -70,10 +91,50 @@ public class PPWCameraActivity extends Activity {
         //icon font face
         Typeface font = Typeface.createFromAsset(getAssets(), "flaticon_ppw_camera.ttf");
 
+        //create a cropped border
+        class CroppedCameraPreview extends FrameLayout {
+            private SurfaceView cameraPreview;
+            private int actualHeight;
+            private int actualWidth;
+            private int deltaWidth = 0;
+            private int deltaHeight = 0;
+            public CroppedCameraPreview( Context context, SurfaceView view) {
+                super( context );
+                cameraPreview = view;
+                WindowManager wm = (WindowManager)context.getSystemService(Context.WINDOW_SERVICE);
+                Display display = wm.getDefaultDisplay();
+                Point size = new Point();
+                display.getSize(size);
+                actualWidth = size.x;
+                actualHeight = size.y;
+            }
+            @Override
+            protected void onMeasure( int widthMeasureSpec, int heightMeasureSpec ) {
+                int height = MeasureSpec.getSize(heightMeasureSpec);
+                int width = MeasureSpec.getSize(widthMeasureSpec);
+                if (width > height * PPWCameraPreview.preview_aspect_ratio) {
+                    width = (int) (height * PPWCameraPreview.preview_aspect_ratio + .5);
+                } else {
+                    height = (int) (width / PPWCameraPreview.preview_aspect_ratio + .5);
+                }
+                deltaWidth = (int)(width - actualWidth);
+                deltaHeight = (int)(height - actualHeight);
+                setMeasuredDimension(width, height);
+            }
+            @Override
+            protected void onLayout( boolean changed, int l, int t, int r, int b) {
+                if (cameraPreview != null) {
+                    cameraPreview.layout (deltaWidth,deltaHeight,actualWidth,actualHeight);
+                }
+            }
+        }
+
         // Create our Preview view and set it as the content of our activity.
         mPreview = new PPWCameraPreview(this, getCameraInstance());
         FrameLayout preview = (FrameLayout) findViewById(getR("id","frame_camera_preview"));
-        preview.addView(mPreview);
+        CroppedCameraPreview croppedPreview = new CroppedCameraPreview(this,mPreview);
+        preview.addView(croppedPreview);
+        croppedPreview.addView(mPreview);
 
         // Add a listener to the Close button
         final Button closeButton = (Button) findViewById(getR("id","button_exit"));
@@ -96,95 +157,20 @@ public class PPWCameraActivity extends Activity {
             new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    try {
-                        // get an image from the camera
-                        if (takePictureMutex) {
-                            Toast.makeText(PPWCameraActivity.this, "Saving...",Toast.LENGTH_SHORT).show();
-                            getCameraInstance().takePicture(null, null, mPicture);
-                            takePictureMutex = false;
+                    // get an image from the camera
+                    if (takePictureMutex) {
+                        takePictureMutex = false;
+                        Toast.makeText(PPWCameraActivity.this, "Saving...",Toast.LENGTH_SHORT).show();
+                        try {
+                            getCameraInstance().takePicture(mShutter, null, mPicture);
+                        } catch (Exception e) {
+                            Log.d(TAG,"exception on picture taking "+e.getMessage());
+                            sendError();
                         }
-                    } catch (Exception e) {
-                        Log.d(TAG,"exception on picture taking "+e.getMessage());
-                        sendError();
                     }
                 }
             }
         );
-
-        // Add a listener to the flash button
-        Camera.Parameters params = getCameraInstance().getParameters();
-        final Button flashButton = (Button) findViewById(getR("id","button_flash"));
-        flashButton.setTypeface(font);
-        final List<String> supportedFlash = params.getSupportedFlashModes();
-        if (supportedFlash == null || params.getFlashMode() == null) {
-            flashButton.setVisibility(View.INVISIBLE); //hide if not supported
-        }
-        else {
-            if (supportedFlash.contains(Camera.Parameters.FLASH_MODE_AUTO)) {
-                flashButton.setText(getR("string","flash_auto_icon"));
-                params.setFlashMode(Camera.Parameters.FLASH_MODE_AUTO);
-            }
-
-            getCameraInstance().setParameters(params);
-            flashButton.setOnClickListener(
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        Camera.Parameters params = getCameraInstance().getParameters();
-                        String currentFlash = params.getFlashMode();
-                        Log.d(TAG,"current flash "+currentFlash);
-                        String nextFlash = currentFlash;
-                        if (currentFlash.compareTo(Camera.Parameters.FLASH_MODE_AUTO) == 0) {
-                            nextFlash = Camera.Parameters.FLASH_MODE_ON;
-                        } else if (currentFlash.compareTo(Camera.Parameters.FLASH_MODE_ON) == 0) {
-                            nextFlash = Camera.Parameters.FLASH_MODE_OFF;
-                        } else {
-                            nextFlash = Camera.Parameters.FLASH_MODE_AUTO;
-                        }
-                        if (!supportedFlash.contains(nextFlash)) {
-                            nextFlash = supportedFlash.get(0);
-                        }
-                        Log.d(TAG,"next flash "+nextFlash);
-                        int nextColor = Color.WHITE;
-                        int nextIcon = getR("string","flash_auto_icon");
-                        if (nextFlash.compareTo(Camera.Parameters.FLASH_MODE_OFF) == 0) {
-                            nextColor = Color.DKGRAY;
-                            nextIcon = getR("string","flash_off_icon");
-                        } else if (nextFlash.compareTo(Camera.Parameters.FLASH_MODE_ON) == 0) {
-                            nextColor = Color.YELLOW;
-                            nextIcon = getR("string","flash_on_icon");
-                        }
-                        params.setFlashMode(nextFlash);
-                        flashButton.setText(nextIcon);
-                        getCameraInstance().setParameters(params);
-
-                        //update color
-                        flashButton.setTextColor(nextColor);
-                        GradientDrawable gd = (GradientDrawable)flashButton.getBackground();
-                        gd.setStroke(getPixelSP(2),nextColor);
-                        ((GradientDrawable)closeButton.getBackground()).setStroke(getPixelSP(2),Color.WHITE);
-                    }
-                }
-            );
-        }
-
-        // Add listener to switch camera button
-//        Button switchButton = (Button) findViewById(R.id.button_switch);
-//        if(Camera.getNumberOfCameras() == 1){
-//            switchButton.setVisibility(View.INVISIBLE);
-//        }
-//        else {
-//            switchButton.setOnClickListener(
-//                new View.OnClickListener() {
-//                    @Override
-//                    public void onClick(View v) {
-//                        if (mPreview != null) {
-//                            mPreview.flipCamera();
-//                        }
-//                    }
-//                }
-//            );
-//        }
 
         mPhotoWidth = 640;
         mPhotoHeight = 480;
@@ -192,6 +178,7 @@ public class PPWCameraActivity extends Activity {
         mPreviewHeight = 480;
         mEncodingType = "jpg";
         mQuality = 100;
+        mFlashType = FLASH_NAME_AUTO;
 
         //scroll through overlay options
         if (PPWCamera.jsonArrayArgs != null && PPWCamera.jsonArrayArgs.length() > 0) {
@@ -204,6 +191,7 @@ public class PPWCameraActivity extends Activity {
             mPreviewHeight = options.optInt("previewHeight",480);
             mEncodingType = options.optString("encodingType", "jpg");
             mQuality = options.optInt("quality", 100);
+            mFlashType = options.optString("flashType",FLASH_NAME_AUTO);
 
             //adjust camera preview
             if (mPreviewHeight > 0 && mPreviewWidth > 0 && mPhotoWidth > 0) {
@@ -311,6 +299,112 @@ public class PPWCameraActivity extends Activity {
                 }
             }
         }
+
+        // Add a listener to the flash button
+        Camera.Parameters params = getCameraInstance().getParameters();
+        final Button flashButton = (Button) findViewById(getR("id","button_flash"));
+        flashButton.setTypeface(font);
+        final List<String> supportedFlash = params.getSupportedFlashModes();
+        if (supportedFlash == null || params.getFlashMode() == null || !supportedFlash.contains(Camera.Parameters.FLASH_MODE_AUTO)) {
+            flashButton.setVisibility(View.INVISIBLE); //hide if not supported
+        }
+        else {
+            int defaultColor = Color.WHITE;
+            int defaultIcon = getR("string","flash_auto_icon");
+            String defaultFlash = Camera.Parameters.FLASH_MODE_AUTO;
+            if (mFlashType.compareToIgnoreCase(FLASH_NAME_OFF) == 0 && supportedFlash.contains(Camera.Parameters.FLASH_MODE_OFF)) {
+                defaultColor = Color.DKGRAY;
+                defaultIcon = getR("string","flash_off_icon");
+                defaultFlash = Camera.Parameters.FLASH_MODE_OFF;
+            } else if (mFlashType.compareToIgnoreCase(FLASH_NAME_ON) == 0 && supportedFlash.contains(Camera.Parameters.FLASH_MODE_ON)) {
+                defaultColor = Color.YELLOW;
+                defaultIcon = getR("string","flash_on_icon");
+                defaultFlash = Camera.Parameters.FLASH_MODE_ON;
+            } else if (mFlashType.compareToIgnoreCase(FLASH_NAME_TORCH) == 0 && supportedFlash.contains(Camera.Parameters.FLASH_MODE_TORCH)) {
+                defaultColor = Color.GREEN;
+                defaultIcon = getR("string","flash_on_icon");
+                defaultFlash = Camera.Parameters.FLASH_MODE_TORCH;
+            }
+
+            params.setFlashMode(defaultFlash);
+            flashButton.setText(defaultIcon);
+            getCameraInstance().setParameters(params);
+
+            flashButton.setTextColor(defaultColor);
+            GradientDrawable gd = (GradientDrawable)flashButton.getBackground();
+            gd.setStroke(getPixelSP(2),defaultColor);
+            ((GradientDrawable)closeButton.getBackground()).setStroke(getPixelSP(2),Color.WHITE);
+
+            flashButton.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Camera.Parameters params = getCameraInstance().getParameters();
+                        String currentFlash = params.getFlashMode();
+                        Log.d(TAG,"current flash "+currentFlash);
+                        String nextFlash = currentFlash;
+                        if (currentFlash.compareTo(Camera.Parameters.FLASH_MODE_AUTO) == 0) {
+                            if (supportedFlash.contains(Camera.Parameters.FLASH_MODE_TORCH)) {
+                                nextFlash = Camera.Parameters.FLASH_MODE_TORCH;
+                            }
+                            else {
+                                currentFlash = Camera.Parameters.FLASH_MODE_TORCH;
+                            }
+                        }
+                        if (currentFlash.compareTo(Camera.Parameters.FLASH_MODE_TORCH) == 0) {
+                            if (supportedFlash.contains(Camera.Parameters.FLASH_MODE_ON)) {
+                                nextFlash = Camera.Parameters.FLASH_MODE_ON;
+                            }
+                            else {
+                                currentFlash = Camera.Parameters.FLASH_MODE_ON;
+                            }
+                        }
+                        if (currentFlash.compareTo(Camera.Parameters.FLASH_MODE_ON) == 0) {
+                            if (supportedFlash.contains(Camera.Parameters.FLASH_MODE_OFF)) {
+                                nextFlash = Camera.Parameters.FLASH_MODE_OFF;
+                            }
+                            else {
+                                currentFlash = Camera.Parameters.FLASH_MODE_OFF;
+                            }
+                        }
+                        if (currentFlash.compareTo(Camera.Parameters.FLASH_MODE_OFF) == 0) {
+                            if (supportedFlash.contains(Camera.Parameters.FLASH_MODE_AUTO)) {
+                                nextFlash = Camera.Parameters.FLASH_MODE_AUTO;
+                            }
+                        }
+                        if (!supportedFlash.contains(nextFlash)) {
+                            nextFlash = supportedFlash.get(0);
+                        }
+                        Log.d(TAG,"next flash "+nextFlash);
+                        int nextColor = Color.WHITE;
+                        int nextIcon = getR("string","flash_auto_icon");
+                        mFlashType = FLASH_NAME_AUTO;
+                        if (nextFlash.compareTo(Camera.Parameters.FLASH_MODE_OFF) == 0) {
+                            nextColor = Color.DKGRAY;
+                            nextIcon = getR("string","flash_off_icon");
+                            mFlashType = FLASH_NAME_OFF;
+                        } else if (nextFlash.compareTo(Camera.Parameters.FLASH_MODE_ON) == 0) {
+                            nextColor = Color.YELLOW;
+                            nextIcon = getR("string","flash_on_icon");
+                            mFlashType = FLASH_NAME_ON;
+                        } else if (nextFlash.compareTo(Camera.Parameters.FLASH_MODE_TORCH) == 0) {
+                            nextColor = Color.GREEN;
+                            nextIcon = getR("string","flash_on_icon");
+                            mFlashType = FLASH_NAME_TORCH;
+                        }
+                        params.setFlashMode(nextFlash);
+                        flashButton.setText(nextIcon);
+                        getCameraInstance().setParameters(params);
+
+                        //update color
+                        flashButton.setTextColor(nextColor);
+                        GradientDrawable gd = (GradientDrawable)flashButton.getBackground();
+                        gd.setStroke(getPixelSP(2),nextColor);
+                        ((GradientDrawable)closeButton.getBackground()).setStroke(getPixelSP(2),Color.WHITE);
+                    }
+                }
+            );
+        }
     }
 
     public int getR(String group, String key) {
@@ -342,6 +436,14 @@ public class PPWCameraActivity extends Activity {
         PluginResult result = new PluginResult(PluginResult.Status.ERROR, "camera error");
         PPWCamera.callbackContext.sendPluginResult(result);
     }
+
+    private Camera.ShutterCallback mShutter = new Camera.ShutterCallback() {
+
+        @Override
+        public void onShutter() {
+
+        }
+    };
 
     private Camera.PictureCallback mPicture = new Camera.PictureCallback() {
 
@@ -388,6 +490,7 @@ public class PPWCameraActivity extends Activity {
                     output.put("size",imageResize.length);
                     output.put("type",mEncodingType);
                     output.put("hash",hash);
+                    output.put("flashType",mFlashType);
                     if (!mDataOutput.isEmpty()) {
                         JSONObject data = new JSONObject();
                         for (HashMap.Entry<String, String> entry : mDataOutput.entrySet()) {
@@ -406,15 +509,19 @@ public class PPWCameraActivity extends Activity {
                 Log.d(TAG, "File not found Error: " + e.getMessage());
                 sendError();
             }
+            camera.cancelAutoFocus();
             camera.stopPreview();
             camera.startPreview();
-            takePictureMutex = true;
+            PPWCameraActivity.takePictureMutex = true;
         }
     };
 
     byte[] resizeImage(byte[] input) {
         Bitmap original = BitmapFactory.decodeByteArray(input, 0, input.length);
-        Bitmap resized = Bitmap.createScaledBitmap(original, mPhotoWidth, mPhotoHeight, true);
+
+        //down scale and crop image
+        Bitmap resized = ThumbnailUtils.extractThumbnail(original, mPhotoWidth, mPhotoHeight, ThumbnailUtils.OPTIONS_RECYCLE_INPUT);
+
         ByteArrayOutputStream blob = new ByteArrayOutputStream();
         if (mEncodingType.compareToIgnoreCase("png") == 0) {
             resized.compress(Bitmap.CompressFormat.PNG, mQuality, blob);
@@ -455,7 +562,14 @@ public class PPWCameraActivity extends Activity {
         super.onPause();
         if (mPreview != null) {
             mCamera = null;
-            mPreview.clearCamera();            // release the camera immediately on pause event
+            mPreview.clearCamera(); // release the camera immediately to fix pause crash
         }
+        init = false;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        init();
     }
 }

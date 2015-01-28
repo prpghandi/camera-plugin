@@ -34,15 +34,36 @@
         <div class="app">
             <h1>PhoneGap</h1>
             <button id="openPPWCameraBtn">Open PPW Camera</button>
+            <p>
+                flashtype: <button id="flashTypeBtn">off</button>
+            </p>
+            <script src="js/ppw_camera.js"></script>
             <script>
+            document.getElementById("flashTypeBtn").addEventListener("click", function() {
+                var text = document.getElementById("flashTypeBtn").innerHTML;
+                if (text == "auto") { //cycle through options
+                    text = "torch";
+                }
+                else if (text == "torch") {
+                    text = "on";
+                }
+                else if (text == "on") {
+                    text = "off";
+                }
+                else {
+                    text = "auto";
+                }
+                document.getElementById("flashTypeBtn").innerHTML = text;
+            }, false);
             document.getElementById("openPPWCameraBtn").addEventListener("click", function(){
                 var options = {
                     quality: 75, //value from 0 to 100
                     encodingType: 'jpg', //only jpg or png
                     previewWidth: 1920, //camera aspect preview
                     previewHeight: 1080,
-                    targetWidth: 320, //output target size
-                    targetHeight: 240,
+                    targetWidth: 480, //output target size
+                    targetHeight: 320,
+                    flashType: document.getElementById("flashTypeBtn").innerHTML, //auto, on, off, torch
                     overlay: [
                         {
                             type: 'text', // Plain text (default)
@@ -74,8 +95,9 @@
                     var image = document.createElement("img");
                     image.setAttribute("src", output.imageURI);
                     document.getElementById("photoImg").appendChild(image);
-                }, function(){
-                    alert("Photo cancelled");
+                    document.getElementById("flashTypeBtn").innerHTML = output.flashType;
+                }, function(error){
+                    alert(error);
                 });
             }, false);
             </script>
