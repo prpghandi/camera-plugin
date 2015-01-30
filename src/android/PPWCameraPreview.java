@@ -184,7 +184,8 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         mScaleDetector.onTouchEvent(event);
-        if(event.getAction() == MotionEvent.ACTION_DOWN && event.getPointerCount()==1) {
+        if(event.getAction() == MotionEvent.ACTION_DOWN && event.getPointerCount()==1 && PPWCameraActivity.takePictureMutex) {
+            PPWCameraActivity.takePictureMutex = false;
             try {
                 mCamera.cancelAutoFocus();
                 Rect focusRect = focusArea(event.getX(), event.getY());
@@ -203,7 +204,7 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
                     @Override
                     public void onAutoFocus(boolean success, Camera camera) {
                         Camera.Parameters params = camera.getParameters();
-                        if (params.getFlashMode().compareToIgnoreCase(Camera.Parameters.FLASH_MODE_TORCH) == 0) {
+                        if (params.getFlashMode() != null && params.getFlashMode().compareToIgnoreCase(Camera.Parameters.FLASH_MODE_TORCH) == 0) {
                             params.setFlashMode(Camera.Parameters.FLASH_MODE_OFF); //turn flash on/off to fix disabling itself on focus
                             camera.setParameters(params);
                             params.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
@@ -212,10 +213,12 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
                         if (success) {
                             camera.cancelAutoFocus();
                         }
+                        PPWCameraActivity.takePictureMutex = true;
                     }
                 });
             } catch (Exception e) {
                 Log.d(TAG, "Tap focus error: " + e.getMessage());
+                PPWCameraActivity.takePictureMutex = true;
             }
         }
         return true;
@@ -240,6 +243,7 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
                 p.setZoom(nextZoom);
                 mCamera.setParameters(p);
             }
+            PPWCameraActivity.takePictureMutex = true;
             return true;
         }
     }

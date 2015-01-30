@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="6250" systemVersion="14A389" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="6254" systemVersion="14B25" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES">
     <dependencies>
         <deployment identifier="iOS"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="6244"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="6247"/>
     </dependencies>
     <customFonts key="customFonts">
         <mutableArray key="flaticon_ppw_camera.ttf">
@@ -25,7 +25,7 @@
             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
             <subviews>
                 <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="7vZ-PW-WVr">
-                    <rect key="frame" x="500" y="130" width="60" height="60"/>
+                    <rect key="frame" x="504" y="130" width="60" height="60"/>
                     <color key="backgroundColor" white="0.0" alpha="1" colorSpace="calibratedWhite"/>
                     <constraints>
                         <constraint firstAttribute="width" constant="60" id="0gY-qf-ZNS"/>
@@ -52,13 +52,13 @@
                     </connections>
                 </button>
                 <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="UEB-dp-q3j">
-                    <rect key="frame" x="8" y="8" width="30" height="30"/>
+                    <rect key="frame" x="4" y="4" width="34" height="34"/>
                     <color key="backgroundColor" white="0.0" alpha="1" colorSpace="calibratedWhite"/>
                     <constraints>
-                        <constraint firstAttribute="height" constant="30" id="fAW-AO-Ey4"/>
-                        <constraint firstAttribute="width" constant="30" id="z6t-fP-pD1"/>
+                        <constraint firstAttribute="height" constant="34" id="fAW-AO-Ey4"/>
+                        <constraint firstAttribute="width" constant="34" id="z6t-fP-pD1"/>
                     </constraints>
-                    <fontDescription key="fontDescription" name="flaticon" family="flaticon" pointSize="15"/>
+                    <fontDescription key="fontDescription" name="flaticon" family="flaticon" pointSize="17"/>
                     <state key="normal" title="">
                         <color key="titleColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
                         <color key="titleShadowColor" white="0.5" alpha="1" colorSpace="calibratedWhite"/>
@@ -74,7 +74,7 @@
                             <integer key="value" value="2"/>
                         </userDefinedRuntimeAttribute>
                         <userDefinedRuntimeAttribute type="number" keyPath="layer.cornerRadius">
-                            <integer key="value" value="15"/>
+                            <integer key="value" value="17"/>
                         </userDefinedRuntimeAttribute>
                         <userDefinedRuntimeAttribute type="boolean" keyPath="layer.masksToBounds" value="YES"/>
                     </userDefinedRuntimeAttributes>
@@ -83,11 +83,11 @@
                     </connections>
                 </button>
                 <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="oP6-m8-hIW">
-                    <rect key="frame" x="530" y="282" width="30" height="30"/>
+                    <rect key="frame" x="530" y="282" width="34" height="34"/>
                     <color key="backgroundColor" white="0.0" alpha="1" colorSpace="calibratedWhite"/>
                     <constraints>
-                        <constraint firstAttribute="height" constant="30" id="ey1-gN-Lnp"/>
-                        <constraint firstAttribute="width" constant="30" id="lMi-cX-Mf6"/>
+                        <constraint firstAttribute="height" constant="34" id="ey1-gN-Lnp"/>
+                        <constraint firstAttribute="width" constant="34" id="lMi-cX-Mf6"/>
                     </constraints>
                     <fontDescription key="fontDescription" name="flaticon" family="flaticon" pointSize="15"/>
                     <state key="normal" title="">
@@ -102,7 +102,7 @@
                             <integer key="value" value="2"/>
                         </userDefinedRuntimeAttribute>
                         <userDefinedRuntimeAttribute type="number" keyPath="layer.cornerRadius">
-                            <integer key="value" value="15"/>
+                            <integer key="value" value="17"/>
                         </userDefinedRuntimeAttribute>
                         <userDefinedRuntimeAttribute type="boolean" keyPath="layer.masksToBounds" value="YES"/>
                     </userDefinedRuntimeAttributes>
@@ -113,12 +113,12 @@
             </subviews>
             <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="calibratedWhite"/>
             <constraints>
-                <constraint firstAttribute="trailing" secondItem="7vZ-PW-WVr" secondAttribute="trailing" constant="8" id="O5r-yr-Nju"/>
-                <constraint firstItem="UEB-dp-q3j" firstAttribute="top" secondItem="i5M-Pr-FkT" secondAttribute="top" constant="8" id="Pcm-L5-8Ho"/>
+                <constraint firstAttribute="trailing" secondItem="7vZ-PW-WVr" secondAttribute="trailing" constant="4" id="O5r-yr-Nju"/>
+                <constraint firstItem="UEB-dp-q3j" firstAttribute="top" secondItem="i5M-Pr-FkT" secondAttribute="top" constant="4" id="Pcm-L5-8Ho"/>
                 <constraint firstAttribute="centerY" secondItem="7vZ-PW-WVr" secondAttribute="centerY" id="a27-AN-AmY"/>
-                <constraint firstAttribute="bottom" secondItem="oP6-m8-hIW" secondAttribute="bottom" constant="8" id="fIQ-sv-idf"/>
-                <constraint firstAttribute="trailing" secondItem="oP6-m8-hIW" secondAttribute="trailing" constant="8" id="jmJ-ru-cmP"/>
-                <constraint firstItem="UEB-dp-q3j" firstAttribute="leading" secondItem="i5M-Pr-FkT" secondAttribute="leading" constant="8" id="udh-sn-FBb"/>
+                <constraint firstAttribute="bottom" secondItem="oP6-m8-hIW" secondAttribute="bottom" constant="4" id="fIQ-sv-idf"/>
+                <constraint firstAttribute="trailing" secondItem="oP6-m8-hIW" secondAttribute="trailing" constant="4" id="jmJ-ru-cmP"/>
+                <constraint firstItem="UEB-dp-q3j" firstAttribute="leading" secondItem="i5M-Pr-FkT" secondAttribute="leading" constant="4" id="udh-sn-FBb"/>
             </constraints>
             <nil key="simulatedStatusBarMetrics"/>
             <simulatedOrientationMetrics key="simulatedOrientationMetrics" orientation="landscapeRight"/>

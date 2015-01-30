@@ -14,8 +14,8 @@
     <Button
         android:id="@+id/button_exit"
         android:background="@drawable/round_btn_small_ppw_camera"
-        android:layout_width="30sp"
-        android:layout_height="30sp"
+        android:layout_width="34sp"
+        android:layout_height="34sp"
         android:layout_alignParentBottom="true"
         android:layout_alignParentRight="true"
         android:textColor="#FFFFFF"
@@ -24,11 +24,11 @@
     <Button
         android:id="@+id/button_flash"
         android:background="@drawable/round_btn_small_ppw_camera"
-        android:layout_width="30sp"
-        android:layout_height="30sp"
+        android:layout_width="34sp"
+        android:layout_height="34sp"
         android:layout_alignParentTop="true"
         android:textColor="#FFFFFF"
-        android:textSize="15sp"
+        android:textSize="17sp"
     />
     <Button
         android:id="@+id/button_capture"

@@ -19,7 +19,6 @@ import android.text.format.Formatter;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
-import android.view.MotionEvent;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
@@ -30,6 +29,7 @@ import android.view.SurfaceView;
 import android.view.WindowManager;
 import android.view.Display;
 import android.graphics.Point;
+import android.os.Build;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -94,19 +94,41 @@ public class PPWCameraActivity extends Activity {
         //create a cropped border
         class CroppedCameraPreview extends FrameLayout {
             private SurfaceView cameraPreview;
-            private int actualHeight;
-            private int actualWidth;
+            private int actualHeight = 0;
+            private int actualWidth = 0;
+            private int frameWidth = 0;
+            private int frameHeight = 0;
             private int deltaWidth = 0;
             private int deltaHeight = 0;
             public CroppedCameraPreview( Context context, SurfaceView view) {
                 super( context );
                 cameraPreview = view;
-                WindowManager wm = (WindowManager)context.getSystemService(Context.WINDOW_SERVICE);
-                Display display = wm.getDefaultDisplay();
-                Point size = new Point();
-                display.getSize(size);
-                actualWidth = size.x;
-                actualHeight = size.y;
+                actualWidth = context.getResources().getDisplayMetrics().widthPixels;
+                actualHeight = context.getResources().getDisplayMetrics().heightPixels;
+                frameWidth = actualWidth;
+                frameHeight = actualHeight;
+                try
+                {
+                    WindowManager windowManager = (WindowManager)context.getSystemService(Context.WINDOW_SERVICE);
+                    Display display = windowManager.getDefaultDisplay();
+
+                    // includes window decorations (statusbar bar/menu bar)
+                    if (Build.VERSION.SDK_INT >= 14 && Build.VERSION.SDK_INT < 17) {
+                        actualWidth = (Integer) Display.class.getMethod("getRawWidth").invoke(display);
+                        actualHeight = (Integer) Display.class.getMethod("getRawHeight").invoke(display);
+                    }
+
+                    // includes window decorations (statusbar bar/menu bar)
+                    if (Build.VERSION.SDK_INT >= 17) {
+                        Point realSize = new android.graphics.Point();
+                        Display.class.getMethod("getRealSize", Point.class).invoke(display, realSize);
+                        actualWidth = realSize.x;
+                        actualHeight = realSize.y;
+                    }
+
+                } catch (Exception ignored)
+                {
+                }
             }
             @Override
             protected void onMeasure( int widthMeasureSpec, int heightMeasureSpec ) {
@@ -124,7 +146,16 @@ public class PPWCameraActivity extends Activity {
             @Override
             protected void onLayout( boolean changed, int l, int t, int r, int b) {
                 if (cameraPreview != null) {
-                    cameraPreview.layout (deltaWidth,deltaHeight,actualWidth,actualHeight);
+                    float actualRatio = (actualWidth*1.f)/actualHeight;
+                    if (PPWCameraPreview.preview_aspect_ratio >= actualRatio) {
+                        cameraPreview.layout (deltaWidth,deltaHeight,actualWidth-deltaWidth,actualHeight-deltaHeight);
+                    }
+                    else if (frameHeight == actualHeight) {
+                        cameraPreview.layout (0,0,frameWidth,frameHeight);
+                    }
+                    else {
+                        cameraPreview.layout (0,0,deltaWidth-actualWidth,deltaHeight-actualHeight);
+                    }
                 }
             }
         }
