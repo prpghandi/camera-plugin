@@ -37,6 +37,9 @@
             <p>
                 flashtype: <button id="flashTypeBtn">off</button>
             </p>
+            <p>
+                auto close in 5 sec: <button id="autoCloseBtn">off</button>
+            </p>
             <script src="js/ppw_camera.js"></script>
             <script>
             document.getElementById("flashTypeBtn").addEventListener("click", function() {
@@ -55,7 +58,26 @@
                 }
                 document.getElementById("flashTypeBtn").innerHTML = text;
             }, false);
+            document.getElementById("autoCloseBtn").addEventListener("click", function() {
+                var text = document.getElementById("autoCloseBtn").innerHTML;
+                if (text == "on") {
+                    text = "off";
+                }
+                else {
+                    text = "on";
+                }
+                document.getElementById("autoCloseBtn").innerHTML = text;
+            }, false);
             document.getElementById("openPPWCameraBtn").addEventListener("click", function(){
+                if (document.getElementById("autoCloseBtn").innerHTML == "on") {
+                    setTimeout( function() {
+                        PPWCamera.closeCamera(null, function() {
+                        },
+                        function(error) {
+                            alert(error);
+                        });
+                    }, 5000);
+                }
                 var options = {
                     quality: 75, //value from 0 to 100
                     encodingType: 'jpg', //only jpg or png
@@ -64,6 +86,8 @@
                     targetWidth: 480, //output target size
                     targetHeight: 320,
                     flashType: document.getElementById("flashTypeBtn").innerHTML, //auto, on, off, torch
+                    thumbnail: 35, //0 to 100 (default to 25) //percentage of target size
+                    backNotify: true, //true or false (default to false)
                     overlay: [
                         {
                             type: 'text', // Plain text (default)
@@ -95,8 +119,14 @@
                     var image = document.createElement("img");
                     image.setAttribute("src", output.imageURI);
                     document.getElementById("photoImg").appendChild(image);
+                    if (output.imageThumbURI.length > 0) {
+                        var imageThumb = document.createElement("img");
+                        imageThumb.setAttribute("src", output.imageThumbURI);
+                        document.getElementById("photoImg").appendChild(imageThumb);
+                    }
                     document.getElementById("flashTypeBtn").innerHTML = output.flashType;
-                }, function(error){
+                },
+                function(error){
                     alert(error);
                 });
             }, false);

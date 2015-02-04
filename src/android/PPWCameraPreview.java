@@ -27,6 +27,7 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
     private SurfaceHolder mHolder;
     private Camera mCamera;
     private int mCamFacing;
+    private boolean mFocusMutex = false;
 
     //scale properties
     private float mScaleFactor = 1.f;
@@ -44,6 +45,7 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
         mHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
         Camera.CameraInfo cam = new Camera.CameraInfo();
         mCamFacing = cam.facing;
+        mFocusMutex = true;
     }
 
     public void clearCamera() {
@@ -78,7 +80,7 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
             mCamera.setParameters(p);
             mCamera.setPreviewDisplay(holder);
             mCamera.startPreview();
-            PPWCameraActivity.takePictureMutex = true;
+            PPWCameraActivity.mTakePictureMutex = true;
         } catch (IOException e) {
             Log.d(TAG, "Error setting camera preview: " + e.getMessage());
         }
@@ -112,7 +114,7 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
         try {
             mCamera.setPreviewDisplay(mHolder);
             mCamera.startPreview();
-            PPWCameraActivity.takePictureMutex = true;
+            PPWCameraActivity.mTakePictureMutex = true;
         } catch (Exception e){
             Log.d(TAG, "Error starting camera preview: " + e.getMessage());
         }
@@ -135,6 +137,7 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
             return sizes.get(0);
         }
 
+                
         return bestSize;
     }
 
@@ -184,8 +187,8 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         mScaleDetector.onTouchEvent(event);
-        if(event.getAction() == MotionEvent.ACTION_DOWN && event.getPointerCount()==1 && PPWCameraActivity.takePictureMutex) {
-            PPWCameraActivity.takePictureMutex = false;
+        if(event.getAction() == MotionEvent.ACTION_DOWN && event.getPointerCount()==1 && mFocusMutex) {
+            mFocusMutex = false;
             try {
                 mCamera.cancelAutoFocus();
                 Rect focusRect = focusArea(event.getX(), event.getY());
@@ -213,12 +216,12 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
                         if (success) {
                             camera.cancelAutoFocus();
                         }
-                        PPWCameraActivity.takePictureMutex = true;
+                        mFocusMutex = true;
                     }
                 });
             } catch (Exception e) {
                 Log.d(TAG, "Tap focus error: " + e.getMessage());
-                PPWCameraActivity.takePictureMutex = true;
+                mFocusMutex = true;
             }
         }
         return true;
@@ -243,7 +246,7 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
                 p.setZoom(nextZoom);
                 mCamera.setParameters(p);
             }
-            PPWCameraActivity.takePictureMutex = true;
+            mFocusMutex = true;
             return true;
         }
     }

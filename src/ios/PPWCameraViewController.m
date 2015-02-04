@@ -147,12 +147,17 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     NSString* mEncodingType;
     int mQuality;
     NSString* mFlashType;
+    int mThumbnail;
+    BOOL mBackNotify;
     NSMutableArray* mDataOutput;
 }
 @property (strong, nonatomic) UIView *preview;
 @property (strong, nonatomic) IBOutlet UIButton *flashBtn;
 @property (strong, nonatomic) IBOutlet UIButton *takePictureBtn;
 @property (strong, nonatomic) FlashData* flashBtnData;
+@property (strong, nonatomic) IBOutlet UIButton *thumbnailBtn;
+@property (strong, nonatomic) IBOutlet UIImageView *imageView;
+@property (strong, nonatomic) IBOutlet UIButton *imageViewBtn;
 @end
 
 @implementation PPWCameraViewController
@@ -261,6 +266,8 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     mEncodingType = @"jpg";
     mQuality = 100;
     mFlashType = FLASH_NAME_AUTO;
+    mThumbnail = 25;
+    mBackNotify = NO;
     mDataOutput = [[NSMutableArray alloc] init];
     
     //scroll through overlay options
@@ -281,6 +288,10 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
         mQuality = [options[@"quality"] intValue];
     if (options[@"flashType"])
         mFlashType = options[@"flashType"];
+    if (options[@"thumbnail"])
+        mThumbnail = [options[@"thumbnail"] intValue];
+    if (options[@"backNotify"])
+        mBackNotify = [options[@"backNotify"] boolValue];
     
     NSArray* overlay = options[@"overlay"];
     if (!overlay)
@@ -484,11 +495,23 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 }
 - (IBAction)closeBtnPressed:(id)sender {
     [self.plugin closeCamera];
+    if (mBackNotify) {
+        [self.plugin sendError:@"close button clicked"];
+    }
 }
 - (IBAction)flashBtnPressed:(id)sender {
     [_flashBtnData setType:[_flashBtnData getNextType]];
     [_flashBtnData updateButton:_flashBtn picker:_picker];
 }
+- (IBAction)thumbnailBtnPressed:(id)sender {
+    [_imageView setHidden:NO];
+    [_imageViewBtn setHidden:NO];
+}
+- (IBAction)imageViewBtnPressed:(id)sender {
+    [_imageView setHidden:YES];
+    [_imageViewBtn setHidden:YES];
+}
+
 
 #pragma mark - UIImagePickerControllerDelegate
 
@@ -496,6 +519,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     
     NSString* timestamp = [NSString stringWithFormat:@"%.0f",[[NSDate date] timeIntervalSince1970]*1000];
     NSString* filename = [NSString stringWithFormat:@"%@.%@",timestamp,mEncodingType];
+    NSString* filenameThumb = [NSString stringWithFormat:@"%@_thumb.%@",timestamp,mEncodingType];
     
     //check free space
     NSError *error = nil;
@@ -508,20 +532,39 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     // Image taken
     UIImage* image = [info objectForKey:UIImagePickerControllerOriginalImage];
     UIImage* imageResize = [self resizeImage:image];
+    UIImage* imageThumb = nil;
+    if (mThumbnail > 0) {
+        imageThumb = [self resizeImage:image width:imageResize.size.width*(mThumbnail*0.01f) height:imageResize.size.height*(mThumbnail*0.01f)];
+    }
     
     // Image path
     NSString* documentsDirectory = [paths objectAtIndex:0];
     NSString* imagePath = [documentsDirectory stringByAppendingPathComponent:filename];
+    NSString* imagePathThumb = @"";
+    if (mThumbnail > 0) {
+        imagePathThumb = [documentsDirectory stringByAppendingPathComponent:filenameThumb];
+    }
     
     // Image data
     NSData* imageData = nil;
+    NSData* imageDataThumb = nil;
     if ([mEncodingType rangeOfString:@"png"].length>0) {
         imageData = UIImagePNGRepresentation(imageResize);
+        if (mThumbnail > 0) {
+            imageDataThumb = UIImagePNGRepresentation(imageThumb);
+        }
     } else {
         imageData = UIImageJPEGRepresentation(imageResize, mQuality*0.01f);
+        if (mThumbnail > 0) {
+            imageDataThumb = UIImageJPEGRepresentation(imageThumb, mQuality*0.01f);
+        }
     }
     
-    if (numberOfBytesRemaining <= [imageData length]) {
+    NSUInteger dataLength = [imageData length];
+    if (imageDataThumb) {
+        dataLength += [imageDataThumb length];
+    }
+    if (numberOfBytesRemaining <= dataLength) {
         UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Unable to Save - Disk Full"
                                                         message:[NSString stringWithFormat:@"Available Space: %lld",numberOfBytesRemaining]
                                                        delegate:nil
@@ -532,12 +575,16 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     else {
         // Write the data to the file
         [imageData writeToFile:imagePath atomically:YES];
+        if (imageDataThumb) {
+            [imageDataThumb writeToFile:imagePathThumb atomically:YES];
+        }
         
         //generate hash of the image
         NSString* hash = [self hmacsha512:[self hexadecimalString:imageData] secret:SECRET_KEY];
         
         NSMutableDictionary* output = [@{
                                  @"imageURI":imagePath,
+                                 @"imageThumbURI": imagePathThumb,
                                  @"lastModifiedDate":timestamp,
                                  @"size":[@([imageData length]) stringValue],
                                  @"type":mEncodingType,
@@ -552,6 +599,20 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
             [output setValue:data forKey:@"data"];
         }
         
+        //update thumbnail
+        if (mThumbnail > 0) {
+            [_thumbnailBtn setImage:imageThumb forState:UIControlStateNormal];
+            [_thumbnailBtn.imageView setContentMode:UIViewContentModeScaleAspectFill];
+            [_thumbnailBtn setHidden:NO];
+            
+            //hide button
+            [_imageViewBtn setHidden:YES];
+            
+            //setup image view
+            [_imageView setImage:imageResize];
+            [_imageView setHidden:YES];
+        }
+        
         // Return output
         [self.plugin resultData:output];
     }
@@ -561,18 +622,21 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     });
 }
 
-- (UIImage*)resizeImage:(UIImage*)image;
-{
+- (UIImage*)resizeImage:(UIImage*)image {
+    return[self resizeImage:image width:mPhotoWidth height:mPhotoHeight];
+}
+
+- (UIImage*)resizeImage:(UIImage*)image width:(float)photoWidth height:(float)photoHeight {
     float previewRatio = mPreviewWidth / mPreviewHeight;
-    float width = CAMERA_ASPECT*mPhotoHeight;
-    float height = mPhotoHeight;
+    float width = CAMERA_ASPECT*photoHeight;
+    float height = photoHeight;
     if (previewRatio > CAMERA_ASPECT) {
-        width = mPhotoWidth;
-        height = mPhotoWidth / CAMERA_ASPECT;
+        width = photoWidth;
+        height = photoWidth / CAMERA_ASPECT;
     }
     
     //down scale and crop
-    UIGraphicsBeginImageContextWithOptions(CGSizeMake(mPhotoWidth,mPhotoHeight),YES,1);
+    UIGraphicsBeginImageContextWithOptions(CGSizeMake(photoWidth,photoHeight),YES,1.0f);
     switch (image.imageOrientation) {
         case UIImageOrientationLeft:
         case UIImageOrientationRight:
@@ -585,7 +649,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
         default:
             break;
     }
-    CGRect cropRect = CGRectMake((mPhotoWidth-width)*0.5f, (mPhotoHeight-height)*0.5f, width, height);
+    CGRect cropRect = CGRectMake((photoWidth-width)*0.5f, (photoHeight-height)*0.5f, width, height);
     UIRectClip(cropRect);
     [image drawInRect:cropRect];
     UIImage* scaleImage = UIGraphicsGetImageFromCurrentImageContext();

@@ -30,8 +30,17 @@
             [self.viewController presentViewController:self.overlay animated:NO completion:nil];
         }
         else {
-            [self sendError];
+            [self sendError:@"Error presenting camera view"];
         }
+    }
+}
+
+-(void)closeCamera:(CDVInvokedUrlCommand *)command {
+    if (self.overlay) {
+        [self closeCamera];
+    }
+    else {
+        [self sendError:@"camera could not be closed. camera activity is not available"];
     }
 }
 
@@ -63,7 +72,7 @@
                                              [self openCamera:self.latestCommand];
                                          }
                                          else {
-                                             [self sendError];
+                                             [self sendError:@"Camera Access Failed"];
                                          }
                                      }];
             
@@ -72,7 +81,7 @@
         case AVAuthorizationStatusRestricted:
         case AVAuthorizationStatusDenied:
         default: {
-            [self sendError];
+            [self sendError:@"Camera Access Denied"];
         }
             break;
     }
@@ -81,7 +90,14 @@
 }
 
 -(void)sendError {
-    CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera Error"];
+    [self sendError:nil];
+}
+
+-(void)sendError:(NSString*)msg {
+    if (!msg) {
+        msg = @"Camera Error";
+    }
+    CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:msg];
     [self.commandDelegate sendPluginResult:result callbackId:self.latestCommand.callbackId];
 }
 

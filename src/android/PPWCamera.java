@@ -28,49 +28,61 @@ public class PPWCamera extends CordovaPlugin {
   private static final String TAG = "PPWCameraPlugin";
 
 	public static final String ACTION_OPEN_CAMERA = "openCamera";
+	public static final String ACTION_CLOSE_CAMERA = "closeCamera";
 
-	public static CallbackContext callbackContext;
-    public static JSONArray jsonArrayArgs;
+	public static CallbackContext openCameraCallbackContext;
+	public static JSONArray openCameraJsonArrayArgs;
 
 	@Override
 	public boolean execute(String action, JSONArray args, CallbackContext callback) {
-		callbackContext = callback;
-        jsonArrayArgs = args;
 
-        if (!checkCameraHardware(cordova.getActivity().getApplicationContext())) {
-            callbackContext.error("Camera not found");
-            return false;
-        }
+		if (!checkCameraHardware(cordova.getActivity().getApplicationContext())) {
+			callback.error("Camera not found");
+			return false;
+    	}
 
-        if (action.compareToIgnoreCase(ACTION_OPEN_CAMERA) != 0) {
-            callback.error("invalid command");
-            return false;
-        }
+	    if (action.compareToIgnoreCase(ACTION_CLOSE_CAMERA) == 0) {
+	    	PPWCameraActivity a = PPWCameraActivity.getInstance();
+	    	if (a != null) {
+	    		a.finish();
+	    		return true;
+	    	}
+	    	callback.error("camera could not be closed. camera activity is not available");
+	    	return false;
+
+	    }
+
+	    if (action.compareToIgnoreCase(ACTION_OPEN_CAMERA) != 0) {
+			callback.error("invalid command");
+			return false;
+	    }
+
+		openCameraCallbackContext = callback;
+    	openCameraJsonArrayArgs = args;
 
 		try {
-            if (this.cordova != null) {
-                this.cordova.setActivityResultCallback(this);
-                Intent i = new Intent(this.cordova.getActivity(), PPWCameraActivity.class);
-                this.cordova.getActivity().startActivity(i);
+			if (this.cordova != null) {
+				this.cordova.setActivityResultCallback(this);
+				Intent i = new Intent(this.cordova.getActivity(), PPWCameraActivity.class);
+				this.cordova.getActivity().startActivity(i);
 			}
 		}
 		catch (Exception e) {
-            System.err.println("Exception: " + e.getMessage());
-            callback.error(e.getMessage());
-            return false;
+			System.err.println("Exception: " + e.getMessage());
+			callback.error(e.getMessage());
+			return false;
 		}
 		return true;
 	}
 
-	/** Check if this device has a camera */
+		/** Check if this device has a camera */
 	private boolean checkCameraHardware(Context context) {
 	    if (context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA)){
-	        // this device has a camera
-	        return true;
+			// this device has a camera
+			return true;
 	    } else {
-	        // no camera on this device
-	        return false;
+			// no camera on this device
+			return false;
 	    }
 	}
-
 }

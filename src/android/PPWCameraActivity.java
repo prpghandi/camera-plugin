@@ -11,6 +11,12 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.RectF;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.PorterDuff;
 import android.hardware.Camera;
 import android.os.Bundle;
 import android.os.Environment;
@@ -23,6 +29,8 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.ImageView;
+import android.widget.ImageButton;
 import android.widget.Toast;
 import android.media.ThumbnailUtils;
 import android.view.SurfaceView;
@@ -48,6 +56,8 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class PPWCameraActivity extends Activity {
 
+    private static PPWCameraActivity mInstance = null;
+
     public static final String TAG = "PPWCameraActivity";
     private static final String SECRET_KEY = "password";
 
@@ -65,23 +75,57 @@ public class PPWCameraActivity extends Activity {
     private int mPreviewHeight;
     private String mEncodingType;
     private int mQuality;
+    private int mThumbnail;
+    private boolean mBackNotify;
     private String mFlashType = null;
 
-    public static boolean takePictureMutex = false;
-    public boolean init = false;
+    ImageButton thumbButton;
+    ImageButton imageViewButton;
+
+    public static boolean mTakePictureMutex = false;
+    public boolean mInit = false;
+
+    public static PPWCameraActivity getInstance() {
+        return mInstance;
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-
         super.onCreate(savedInstanceState);
+        init(); 
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mPreview != null) {
+            mCamera = null;
+            mPreview.clearCamera(); // release the camera immediately to fix pause crash
+        }
+        mInstance = null;
+        mInit = false;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mInstance = this;
         init();
     }
 
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        if (mBackNotify) {
+            PPWCamera.openCameraCallbackContext.error("back button clicked");
+        }
+    }
+
     public void init() {
-        if (init) {
+        if (mInit) {
             return;
         }
-        init = true; //don't initialize more than once
+        mInit = true; //don't initialize more than once
 
         setContentView(getR("layout","activity_ppw_camera"));
 
@@ -176,8 +220,33 @@ public class PPWCameraActivity extends Activity {
                     @Override
                     public void onClick(View v) {
                         finish();
+                        if (mBackNotify) {
+                            PPWCamera.openCameraCallbackContext.error("close button clicked");
+                        }
                     }
                 }
+        );
+
+        //add a listener to the imageview button
+        imageViewButton = (ImageButton) findViewById(getR("id","button_imageView"));
+        imageViewButton.setOnClickListener(
+            new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    imageViewButton.setVisibility(View.INVISIBLE);
+                }
+            }
+        );
+
+        // Add a listener to the thumbnail button
+        thumbButton = (ImageButton) findViewById(getR("id","button_thumbnail"));
+        thumbButton.setOnClickListener(
+            new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    imageViewButton.setVisibility(View.VISIBLE);
+                }
+            }
         );
 
         // Add a listener to the Capture button
@@ -189,8 +258,8 @@ public class PPWCameraActivity extends Activity {
                 @Override
                 public void onClick(View v) {
                     // get an image from the camera
-                    if (takePictureMutex) {
-                        takePictureMutex = false;
+                    if (mTakePictureMutex) {
+                        mTakePictureMutex = false;
                         Toast.makeText(PPWCameraActivity.this, "Saving...",Toast.LENGTH_SHORT).show();
                         try {
                             getCameraInstance().takePicture(mShutter, null, mPicture);
@@ -209,19 +278,23 @@ public class PPWCameraActivity extends Activity {
         mPreviewHeight = 480;
         mEncodingType = "jpg";
         mQuality = 100;
+        mThumbnail = 25;
+        mBackNotify = false;
         mFlashType = FLASH_NAME_AUTO;
 
         //scroll through overlay options
-        if (PPWCamera.jsonArrayArgs != null && PPWCamera.jsonArrayArgs.length() > 0) {
-            Log.d(TAG,""+PPWCamera.jsonArrayArgs.toString());
+        if (PPWCamera.openCameraJsonArrayArgs != null && PPWCamera.openCameraJsonArrayArgs.length() > 0) {
+            Log.d(TAG,""+PPWCamera.openCameraJsonArrayArgs.toString());
 
-            JSONObject options = PPWCamera.jsonArrayArgs.optJSONObject(0);
+            JSONObject options = PPWCamera.openCameraJsonArrayArgs.optJSONObject(0);
             mPhotoWidth = options.optInt("targetWidth", 640);
             mPhotoHeight = options.optInt("targetHeight",480);
             mPreviewWidth = options.optInt("previewWidth", 640);
             mPreviewHeight = options.optInt("previewHeight",480);
             mEncodingType = options.optString("encodingType", "jpg");
             mQuality = options.optInt("quality", 100);
+            mThumbnail = options.optInt("thumbnail",25);
+            mBackNotify = options.optBoolean("backNotify",false);
             mFlashType = options.optString("flashType",FLASH_NAME_AUTO);
 
             //adjust camera preview
@@ -464,8 +537,7 @@ public class PPWCameraActivity extends Activity {
     }
 
     private static void sendError() {
-        PluginResult result = new PluginResult(PluginResult.Status.ERROR, "camera error");
-        PPWCamera.callbackContext.sendPluginResult(result);
+        PPWCamera.openCameraCallbackContext.error("camera error");
     }
 
     private Camera.ShutterCallback mShutter = new Camera.ShutterCallback() {
@@ -481,8 +553,9 @@ public class PPWCameraActivity extends Activity {
         @Override
         public void onPictureTaken(byte[] imageData, Camera camera) {
 
-            String timeStamp = String.valueOf(System.currentTimeMillis());
-            String FILENAME = timeStamp + "."+mEncodingType;
+            final String timeStamp = String.valueOf(System.currentTimeMillis());
+            final String FILENAME = timeStamp + "."+mEncodingType;
+            final String FILENAME_THUMB = timeStamp + "_thumb."+mEncodingType;
 
             try {
                 //check disk space
@@ -491,9 +564,17 @@ public class PPWCameraActivity extends Activity {
                 long blockSize = stat.getBlockSize();
                 long availableBlocks = stat.getAvailableBlocks();
                 long availableBytes = blockSize*availableBlocks;
-                byte[] imageResize = resizeImage(imageData);
+                byte[] imageResize = resizeImage(imageData, mPhotoWidth, mPhotoHeight);
+                byte[] imageThumb = null;
+                if (mThumbnail > 0) {
+                    imageThumb = resizeImage(imageResize, (int)(mPhotoWidth*mThumbnail*0.01f), (int)(mPhotoHeight*mThumbnail*0.01f));
+                }
+                int dataLength = imageResize.length;
+                if (mThumbnail > 0) {
+                    dataLength += imageThumb.length;
+                }
 
-                if (availableBytes <= imageResize.length) {
+                if (availableBytes <= dataLength) {
 
                     String availSize = Formatter.formatFileSize(PPWCameraActivity.this, availableBytes);
 
@@ -510,13 +591,21 @@ public class PPWCameraActivity extends Activity {
                     FileOutputStream fos = openFileOutput(FILENAME, Context.MODE_PRIVATE);
                     fos.write(imageResize);
                     fos.close();
-
                     String imagePath = getFilesDir() + "/" + FILENAME;
+                    
+                    String imagePathThumb = "";
+                    if (imageThumb != null) {
+                        fos = openFileOutput(FILENAME_THUMB, Context.MODE_PRIVATE);
+                        fos.write(imageThumb);
+                        fos.close();
+                        imagePathThumb = getFilesDir() + "/" + FILENAME_THUMB;
+                    }
 
                     String hash = hmacSha512(bytesToHex(imageResize), SECRET_KEY);
 
                     JSONObject output = new JSONObject();
                     output.put("imageURI",imagePath);
+                    output.put("imageThumbURI",imagePathThumb);
                     output.put("lastModifiedDate",timeStamp);
                     output.put("size",imageResize.length);
                     output.put("type",mEncodingType);
@@ -530,10 +619,27 @@ public class PPWCameraActivity extends Activity {
                         output.put("data",data);
                     }
 
+                    //update thumbnail
+                    if (mThumbnail > 0) {
+                        //setup image view
+                        Bitmap image = BitmapFactory.decodeByteArray(imageResize, 0, imageResize.length);
+                        imageViewButton.setImageBitmap(image);
+                        imageViewButton.setVisibility(View.INVISIBLE);
+
+                        int radius = (int)(mPhotoWidth*(mThumbnail*0.01f));
+                        if (mPhotoHeight > mPhotoWidth) {
+                            radius = (int)(mPhotoHeight*(mThumbnail*0.01f));
+                        }
+                        
+                        Bitmap thumb = ThumbnailUtils.extractThumbnail(image, radius, radius);
+                        thumbButton.setImageBitmap(getCircleBitmap(thumb));
+                        thumbButton.setVisibility(View.VISIBLE);
+                    }
+
                     Log.d(TAG, output.toString());
                     PluginResult result = new PluginResult(PluginResult.Status.OK, output);
                     result.setKeepCallback(true);
-                    PPWCamera.callbackContext.sendPluginResult(result);
+                    PPWCamera.openCameraCallbackContext.sendPluginResult(result);
                 }
 
             } catch (Exception e) {
@@ -543,15 +649,18 @@ public class PPWCameraActivity extends Activity {
             camera.cancelAutoFocus();
             camera.stopPreview();
             camera.startPreview();
-            PPWCameraActivity.takePictureMutex = true;
+            PPWCameraActivity.mTakePictureMutex = true;
         }
     };
 
-    byte[] resizeImage(byte[] input) {
-        Bitmap original = BitmapFactory.decodeByteArray(input, 0, input.length);
+    /*
+     * Image modifiers
+     */
+    byte[] resizeImage(byte[] input, int width, int height) {
 
         //down scale and crop image
-        Bitmap resized = ThumbnailUtils.extractThumbnail(original, mPhotoWidth, mPhotoHeight, ThumbnailUtils.OPTIONS_RECYCLE_INPUT);
+        Bitmap original = BitmapFactory.decodeByteArray(input, 0, input.length);
+        Bitmap resized = ThumbnailUtils.extractThumbnail(original, width, height, ThumbnailUtils.OPTIONS_RECYCLE_INPUT);
 
         ByteArrayOutputStream blob = new ByteArrayOutputStream();
         if (mEncodingType.compareToIgnoreCase("png") == 0) {
@@ -559,7 +668,26 @@ public class PPWCameraActivity extends Activity {
         } else {
             resized.compress(Bitmap.CompressFormat.JPEG, mQuality, blob);
         }
+
         return blob.toByteArray();
+    }
+
+    Bitmap getCircleBitmap(Bitmap bitmap) {
+        final Bitmap output = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
+        final Canvas canvas = new Canvas(output);
+        final Paint paint = new Paint();
+        final Rect rect = new Rect(0, 0, bitmap.getWidth(), bitmap.getHeight());
+
+        paint.setAntiAlias(true);
+        canvas.drawARGB(0, 0, 0, 0);
+        paint.setColor(Color.RED);
+        canvas.drawOval(new RectF(rect), paint);
+
+        paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
+        canvas.drawBitmap(bitmap, rect, rect, paint);
+        bitmap.recycle();
+
+        return output;
     }
 
     /*
@@ -586,21 +714,5 @@ public class PPWCameraActivity extends Activity {
             hexChars[j * 2 + 1] = hexArray[v & 0x0F];
         }
         return new String(hexChars);
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (mPreview != null) {
-            mCamera = null;
-            mPreview.clearCamera(); // release the camera immediately to fix pause crash
-        }
-        init = false;
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        init();
     }
 }
