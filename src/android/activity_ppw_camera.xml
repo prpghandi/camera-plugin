@@ -40,4 +40,27 @@
         android:textColor="#FFFFFF"
         android:textSize="30sp"
       />
+    <ImageButton
+        android:id="@+id/button_thumbnail"
+        android:background="@drawable/round_btn_large_ppw_camera"
+        android:layout_width="60sp"
+        android:layout_height="60sp"
+        android:layout_alignParentLeft="true"
+        android:layout_centerVertical="true"
+        android:visibility="invisible"
+        android:scaleType="centerInside"
+        />
+    <ImageButton
+        android:id="@+id/button_imageView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingTop="60sp"
+        android:paddingBottom="60sp"
+        android:paddingLeft="134sp"
+        android:paddingRight="134sp"
+        android:background="@null"
+        android:layout_centerInParent="true"
+        android:scaleType="centerCrop"
+        android:visibility="invisible"
+        />
 </RelativeLayout>
