@@ -14,7 +14,7 @@
 // command method
 -(void) openCamera:(CDVInvokedUrlCommand*)command;
 -(void) closeCamera:(CDVInvokedUrlCommand*)command;
--(void) sendError:(NSString*)msg;
+-(void) sendError:(NSString*)msg code:(int)errorId;
 
 // return method
 -(void) resultData:(NSDictionary*)output;

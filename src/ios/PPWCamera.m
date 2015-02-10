@@ -30,7 +30,7 @@
             [self.viewController presentViewController:self.overlay animated:NO completion:nil];
         }
         else {
-            [self sendError:@"Error presenting camera view"];
+            [self sendError:@"Error presenting camera view" code:0];
         }
     }
 }
@@ -40,9 +40,11 @@
         [self closeCamera];
     }
     else {
-        [self sendError:@"camera could not be closed. camera activity is not available"];
+        [self sendError:@"camera could not be closed. camera activity is not available" code:0];
     }
 }
+
+#pragma mark return method
 
 // return method
 -(void)resultData:(NSDictionary *)output {
@@ -53,6 +55,8 @@
     // Unset the self.hasPendingOperation property
     self.hasPendingOperation = NO;
 }
+
+#pragma mark helper methods
 
 -(void)closeCamera {
     [self.viewController dismissViewControllerAnimated:YES completion:nil];
@@ -72,7 +76,7 @@
                                              [self openCamera:self.latestCommand];
                                          }
                                          else {
-                                             [self sendError:@"Camera Access Failed"];
+                                             [self sendError:@"Camera Access Failed" code:0];
                                          }
                                      }];
             
@@ -81,7 +85,7 @@
         case AVAuthorizationStatusRestricted:
         case AVAuthorizationStatusDenied:
         default: {
-            [self sendError:@"Camera Access Denied"];
+            [self sendError:@"Camera Access Denied" code:0];
         }
             break;
     }
@@ -89,15 +93,22 @@
     return NO;
 }
 
+#pragma mark error handling
+
 -(void)sendError {
-    [self sendError:nil];
+    [self sendError:nil code:0];
 }
 
--(void)sendError:(NSString*)msg {
+-(void)sendError:(NSString*)msg code:(int)errorId{
     if (!msg) {
+        errorId = 0;
         msg = @"Camera Error";
     }
-    CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:msg];
+    CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
+                                            messageAsDictionary:@{
+                                                                  @"code":@(errorId),
+                                                                  @"message":msg
+                                                                  }];
     [self.commandDelegate sendPluginResult:result callbackId:self.latestCommand.callbackId];
 }
 

@@ -118,7 +118,7 @@ public class PPWCameraActivity extends Activity {
     public void onBackPressed() {
         super.onBackPressed();
         if (mBackNotify) {
-            PPWCamera.openCameraCallbackContext.error("back button clicked");
+            PPWCamera.sendError("back button clicked",2,PPWCamera.openCameraCallbackContext);
         }
     }
 
@@ -223,7 +223,7 @@ public class PPWCameraActivity extends Activity {
                     public void onClick(View v) {
                         finish();
                         if (mBackNotify) {
-                            PPWCamera.openCameraCallbackContext.error("close button clicked");
+                            PPWCamera.sendError("close button clicked",1,PPWCamera.openCameraCallbackContext);
                         }
                     }
                 }
@@ -533,10 +533,6 @@ public class PPWCameraActivity extends Activity {
         return c;
     }
 
-    private static void sendError() {
-        PPWCamera.openCameraCallbackContext.error("camera error");
-    }
-
     private Camera.ShutterCallback mShutter = new Camera.ShutterCallback() {
 
         @Override
@@ -649,6 +645,10 @@ public class PPWCameraActivity extends Activity {
             PPWCameraActivity.mTakePictureMutex = true;
         }
     };
+
+    private static void sendError() {
+        PPWCamera.sendError("camera error",0,PPWCamera.openCameraCallbackContext);
+    }
 
     /*
      * Camera modifier

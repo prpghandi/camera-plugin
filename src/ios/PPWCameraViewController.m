@@ -496,7 +496,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 - (IBAction)closeBtnPressed:(id)sender {
     [self.plugin closeCamera];
     if (mBackNotify) {
-        [self.plugin sendError:@"close button clicked"];
+        [self.plugin sendError:@"close button clicked" code:1];
     }
 }
 - (IBAction)flashBtnPressed:(id)sender {
