@@ -18,6 +18,7 @@ import android.graphics.RectF;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.PorterDuff;
 import android.hardware.Camera;
+import android.hardware.Camera.Size;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.StatFs;
@@ -142,8 +143,6 @@ public class PPWCameraActivity extends Activity {
             private int actualWidth = 0;
             private int frameWidth = 0;
             private int frameHeight = 0;
-            private int deltaWidth = 0;
-            private int deltaHeight = 0;
             public CroppedCameraPreview( Context context, SurfaceView view) {
                 super( context );
                 cameraPreview = view;
@@ -176,30 +175,33 @@ public class PPWCameraActivity extends Activity {
             }
             @Override
             protected void onMeasure( int widthMeasureSpec, int heightMeasureSpec ) {
-                int height = MeasureSpec.getSize(heightMeasureSpec);
-                int width = MeasureSpec.getSize(widthMeasureSpec);
-                if (width > height * PPWCameraPreview.preview_aspect_ratio) {
-                    width = (int) (height * PPWCameraPreview.preview_aspect_ratio + .5);
+                int height = actualHeight;
+                int width = actualWidth;
+                float actualRatio = ((float)actualWidth)/actualHeight;
+                float ratio = ((float)mPreviewWidth)/mPreviewHeight;
+                if (actualRatio > ratio) {
+                    width = (int) (height * ratio);
                 } else {
-                    height = (int) (width / PPWCameraPreview.preview_aspect_ratio + .5);
+                    height = (int) (width / ratio);
                 }
-                deltaWidth = (int)(width - actualWidth);
-                deltaHeight = (int)(height - actualHeight);
                 setMeasuredDimension(width, height);
             }
             @Override
             protected void onLayout( boolean changed, int l, int t, int r, int b) {
                 if (cameraPreview != null) {
-                    float actualRatio = (actualWidth*1.f)/actualHeight;
-                    if (PPWCameraPreview.preview_aspect_ratio >= actualRatio) {
-                        cameraPreview.layout (deltaWidth,deltaHeight,actualWidth-deltaWidth,actualHeight-deltaHeight);
+                    int height = b-t;
+                    int width = r-l;
+                    Size s = mCamera.getParameters().getPreviewSize();
+                    float previewRatio = ((float)s.width)/s.height;
+                    float ratio = ((float)width)/(height);
+                    if (previewRatio > ratio) {
+                        width = (int)(height * previewRatio);
+                    } else {
+                        height = (int)(width / previewRatio);
                     }
-                    else if (frameHeight == actualHeight) {
-                        cameraPreview.layout (0,0,frameWidth,frameHeight);
-                    }
-                    else {
-                        cameraPreview.layout (0,0,deltaWidth-actualWidth,deltaHeight-actualHeight);
-                    }
+                    int deltaWidth = (int)((width - (r-l))*0.5);
+                    int deltaHeight = (int)((height - (b-t))*0.5);
+                    cameraPreview.layout (-deltaWidth,-deltaHeight,width-deltaWidth,height-deltaHeight);
                 }
             }
         }
@@ -297,13 +299,8 @@ public class PPWCameraActivity extends Activity {
             mBackNotify = options.optBoolean("backNotify",false);
             mFlashType = options.optString("flashType",FLASH_NAME_AUTO);
 
-            //adjust camera preview
-            if (mPreviewHeight > 0 && mPreviewWidth > 0 && mPhotoWidth > 0) {
-                PPWCameraPreview.picture_aspect_ratio = ((double) mPhotoWidth) / mPhotoHeight;
-                PPWCameraPreview.preview_aspect_ratio = ((double) mPreviewWidth) / mPreviewHeight;
-                PPWCameraPreview.picture_size_max_width = mPhotoWidth;
-                PPWCameraPreview.preview_size_max_width = mPreviewWidth;
-            }
+            //setup camera for new values
+            setupCamera();
 
             JSONArray overlay = options.optJSONArray("overlay");
             if (overlay != null) {
@@ -654,6 +651,36 @@ public class PPWCameraActivity extends Activity {
     };
 
     /*
+     * Camera modifier
+     */
+    protected Size determineBestSize(List<Camera.Size> sizes, int width, int height) {
+        for (Size currentSize : sizes) {
+            if (currentSize.width <= width && currentSize.height <= height) {
+                return currentSize;
+            }
+        }
+
+        return sizes.get(0);
+    }
+
+    private Size determineBestPreviewSize(Camera.Parameters parameters) {
+        return determineBestSize(parameters.getSupportedPreviewSizes(), mPreviewWidth, mPreviewHeight);
+    }
+
+    private Size determineBestPictureSize(Camera.Parameters parameters) {
+        return determineBestSize(parameters.getSupportedPictureSizes(), mPhotoWidth, mPhotoHeight);
+    }
+
+    public void setupCamera() {
+        Camera.Parameters parameters = getCameraInstance().getParameters();
+        Size bestPreviewSize = determineBestPreviewSize(parameters);
+        Size bestPictureSize = determineBestPictureSize(parameters);
+        parameters.setPreviewSize(bestPreviewSize.width, bestPreviewSize.height);
+        parameters.setPictureSize(bestPictureSize.width, bestPictureSize.height);
+        getCameraInstance().setParameters(parameters);
+    }
+
+    /*
      * Image modifiers
      */
     byte[] resizeImage(byte[] input, int width, int height) {
@@ -661,13 +688,13 @@ public class PPWCameraActivity extends Activity {
         //down scale and crop image
         Bitmap original = BitmapFactory.decodeByteArray(input, 0, input.length);
         Bitmap resized = ThumbnailUtils.extractThumbnail(original, width, height, ThumbnailUtils.OPTIONS_RECYCLE_INPUT);
-
         ByteArrayOutputStream blob = new ByteArrayOutputStream();
         if (mEncodingType.compareToIgnoreCase("png") == 0) {
             resized.compress(Bitmap.CompressFormat.PNG, mQuality, blob);
         } else {
             resized.compress(Bitmap.CompressFormat.JPEG, mQuality, blob);
         }
+        resized.recycle();
 
         return blob.toByteArray();
     }
