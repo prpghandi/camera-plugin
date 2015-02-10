@@ -81,10 +81,10 @@
                 var options = {
                     quality: 75, //value from 0 to 100
                     encodingType: 'jpg', //only jpg or png
-                    previewWidth: 1920, //camera aspect preview
-                    previewHeight: 1080,
-                    targetWidth: 480, //output target size
-                    targetHeight: 320,
+                    previewWidth: 640, //camera aspect preview
+                    previewHeight: 480,
+                    targetWidth: 640, //output target size
+                    targetHeight: 480,
                     flashType: document.getElementById("flashTypeBtn").innerHTML, //auto, on, off, torch
                     thumbnail: 35, //0 to 100 (default to 25) //percentage of target size
                     backNotify: true, //true or false (default to false)
@@ -127,7 +127,7 @@
                     document.getElementById("flashTypeBtn").innerHTML = output.flashType;
                 },
                 function(error){
-                    alert(error);
+                    alert(error.message);
                 });
             }, false);
             </script>
