@@ -10,7 +10,7 @@
 
 @class PPWCamera;
 
-@interface PPWCameraViewController : UIViewController <UIImagePickerControllerDelegate,UINavigationControllerDelegate>
+@interface PPWCameraViewController : UIViewController <UIImagePickerControllerDelegate,UINavigationControllerDelegate,UIGestureRecognizerDelegate>
 
 - (void)setOptions:(NSDictionary*)options;
 

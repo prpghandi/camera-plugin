@@ -72,12 +72,14 @@
         case AVAuthorizationStatusNotDetermined: {
             [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo
                                      completionHandler:^(BOOL granted) {
-                                         if (granted) {
-                                             [self openCamera:self.latestCommand];
-                                         }
-                                         else {
-                                             [self sendError:@"Camera Access Failed" code:0];
-                                         }
+                                         dispatch_async(dispatch_get_main_queue(), ^{
+                                             if (granted) {
+                                                 [self openCamera:self.latestCommand];
+                                             }
+                                             else {
+                                                 [self sendError:@"Camera Access Failed" code:0];
+                                             }
+                                         });
                                      }];
             
         }
