@@ -191,7 +191,7 @@ public class PPWCameraActivity extends Activity {
                 if (cameraPreview != null) {
                     int height = b-t;
                     int width = r-l;
-                    Size s = mCamera.getParameters().getPreviewSize();
+                    Size s = getCameraInstance().getParameters().getPreviewSize();
                     float previewRatio = ((float)s.width)/s.height;
                     float ratio = ((float)width)/(height);
                     if (previewRatio > ratio) {
