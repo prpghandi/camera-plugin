@@ -40,6 +40,9 @@
             <p>
                 auto close in 5 sec: <button id="autoCloseBtn">off</button>
             </p>
+            <p>
+                auto confirm picture: <button id="autoConfirmBtn">off</button>
+            </p>
             <script src="js/ppw_camera.js"></script>
             <script>
             document.getElementById("flashTypeBtn").addEventListener("click", function() {
@@ -68,10 +71,20 @@
                 }
                 document.getElementById("autoCloseBtn").innerHTML = text;
             }, false);
+            document.getElementById("autoConfirmBtn").addEventListener("click", function() {
+                var text = document.getElementById("autoConfirmBtn").innerHTML;
+                if (text == "on") {
+                    text = "off";
+                }
+                else {
+                    text = "on";
+                }
+                document.getElementById("autoConfirmBtn").innerHTML = text;
+            }, false);
             document.getElementById("openPPWCameraBtn").addEventListener("click", function(){
                 if (document.getElementById("autoCloseBtn").innerHTML == "on") {
                     setTimeout( function() {
-                        PPWCamera.closeCamera(null, function() {
+                        navigator.PPWCamera.closeCamera(null, function() {
                         },
                         function(error) {
                             alert(error);
@@ -79,15 +92,17 @@
                     }, 5000);
                 }
                 var options = {
-                    quality: 75, //value from 0 to 100
+                    quality: 80, //value from 0 to 100
                     encodingType: 'jpg', //only jpg or png
-                    previewWidth: 640, //camera aspect preview
-                    previewHeight: 480,
+                    previewWidth: 1280, //camera aspect preview
+                    previewHeight: 1080,
                     targetWidth: 640, //output target size
                     targetHeight: 480,
                     flashType: document.getElementById("flashTypeBtn").innerHTML, //auto, on, off, torch
                     thumbnail: 35, //0 to 100 (default to 25) //percentage of target size
                     backNotify: true, //true or false (default to false)
+                    confirmErrorMessage: 'Error with photo taken.  Camera plugin will close.',
+                    confirmTimeInterval: 500,
                     overlay: [
                         {
                             type: 'text', // Plain text (default)
@@ -125,6 +140,14 @@
                         document.getElementById("photoImg").appendChild(imageThumb);
                     }
                     document.getElementById("flashTypeBtn").innerHTML = output.flashType;
+                    if (document.getElementById("autoConfirmBtn").innerHTML == "on") {
+                        navigator.PPWCamera.confirmPicture(null, function() {
+                            test: 'does not need a parameter but using one for placeholder'
+                        },
+                        function(error) {
+                            alert(error);
+                        });
+                    }
                 },
                 function(error){
                     alert(error.message);

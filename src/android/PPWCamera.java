@@ -29,6 +29,7 @@ public class PPWCamera extends CordovaPlugin {
 
 	public static final String ACTION_OPEN_CAMERA = "openCamera";
 	public static final String ACTION_CLOSE_CAMERA = "closeCamera";
+	public static final String ACTION_CONFIRM_CAMERA = "confirmCamera";
 
 	public static CallbackContext openCameraCallbackContext;
 	public static JSONArray openCameraJsonArrayArgs;
@@ -41,13 +42,23 @@ public class PPWCamera extends CordovaPlugin {
 			return false;
   	}
 
+  	if (action.compareToIgnoreCase(ACTION_CONFIRM_CAMERA) == 0) {
+  		PPWCameraActivity a = PPWCameraActivity.getInstance();
+    	if (a != null) {
+    		a.confirmCamera();
+    		return true;
+    	}
+    	sendError("Camera could not be confirmed. Camera activity is not available",0,callback);
+  		return false;
+  	}
+
     if (action.compareToIgnoreCase(ACTION_CLOSE_CAMERA) == 0) {
     	PPWCameraActivity a = PPWCameraActivity.getInstance();
     	if (a != null) {
     		a.finish();
     		return true;
     	}
-    	sendError("camera could not be closed. camera activity is not available",0,callback);
+    	sendError("Camera could not be closed. Camera activity is not available",0,callback);
     	return false;
 
     }
@@ -56,6 +67,13 @@ public class PPWCamera extends CordovaPlugin {
     	sendError("invalid command",0,callback);
 			return false;
     }
+
+    //singleton check
+    PPWCameraActivity a = PPWCameraActivity.getInstance();
+  	if (a != null) {
+  		sendError("Another camera instance already exists",0,callback);
+  		return false;
+  	}
 
 		openCameraCallbackContext = callback;
     openCameraJsonArrayArgs = args;

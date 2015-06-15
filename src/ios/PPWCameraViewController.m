@@ -484,7 +484,6 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     [_imageViewBtn setHidden:YES];
 }
 
-
 #pragma mark - UIImagePickerControllerDelegate
 
 -(void) imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info {
@@ -594,6 +593,8 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     });
 }
 
+#pragma mark - image scale and crop
+
 - (UIImage*)resizeImage:(UIImage*)image {
     return[self resizeImage:image width:mPhotoWidth height:mPhotoHeight scale:mPhotoScale];
 }
@@ -673,7 +674,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 
 @end
 
-#pragma mark - helper classes
+#pragma mark - helper class implementation
 
 //assigns the CG Color to a border
 @implementation CALayer(XibConfiguration)

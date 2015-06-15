@@ -5,6 +5,7 @@ import org.apache.cordova.PluginResult;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -39,6 +40,7 @@ import android.view.WindowManager;
 import android.view.Display;
 import android.graphics.Point;
 import android.os.Build;
+import android.os.Handler;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -51,6 +53,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.List;
+import java.lang.Runnable;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -85,6 +88,10 @@ public class PPWCameraActivity extends Activity {
 
     public static boolean mTakePictureMutex = false;
     public boolean mInit = false;
+
+    private String mConfirmErrorMessage;
+    private float mConfirmationTimeInterval;
+    private Handler mConfirmationTimer = new Handler();
 
     public static PPWCameraActivity getInstance() {
         return mInstance;
@@ -121,6 +128,28 @@ public class PPWCameraActivity extends Activity {
             PPWCamera.sendError("back button clicked",2,PPWCamera.openCameraCallbackContext);
         }
     }
+
+    public void confirmCamera() {
+        mConfirmationTimer.removeCallbacks(showConfirmErrorPopup);
+    }
+
+    private Runnable showConfirmErrorPopup = new Runnable() {
+       @Override
+       public void run() {
+          new AlertDialog.Builder(PPWCameraActivity.this)
+                            .setTitle("Error")
+                            .setMessage(mConfirmErrorMessage)
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .setCancelable(false)
+                            .setNegativeButton("OK", new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int id) {
+                                    dialog.cancel();
+                                    PPWCameraActivity.this.finish();
+                                }
+                            })
+                            .show();
+       }
+    };
 
     public void init() {
         if (mInit) {
@@ -191,16 +220,17 @@ public class PPWCameraActivity extends Activity {
                 if (cameraPreview != null) {
                     int height = b-t;
                     int width = r-l;
-                    Size s = getCameraInstance().getParameters().getPreviewSize();
-                    float previewRatio = ((float)s.width)/s.height;
-                    float ratio = ((float)width)/(height);
+                    Size previewSize = getCameraInstance().getParameters().getPreviewSize();
+                    float previewRatio = ((float)previewSize.width)/previewSize.height;
+                    float ratio = ((float)width)/height;
                     if (previewRatio > ratio) {
                         width = (int)(height * previewRatio);
                     } else {
                         height = (int)(width / previewRatio);
                     }
-                    int deltaWidth = (int)((width - (r-l))*0.5);
-                    int deltaHeight = (int)((height - (b-t))*0.5);
+                    final float deltaFraction = 0.5f;
+                    int deltaWidth = (int)(((width - (r-l))*deltaFraction) + (actualWidth-frameWidth));
+                    int deltaHeight = (int)(((height - (b-t))*deltaFraction) + (actualHeight-frameHeight));
                     cameraPreview.layout (-deltaWidth,-deltaHeight,width-deltaWidth,height-deltaHeight);
                 }
             }
@@ -283,6 +313,8 @@ public class PPWCameraActivity extends Activity {
         mThumbnail = 25;
         mBackNotify = false;
         mFlashType = FLASH_NAME_AUTO;
+        mConfirmationTimeInterval = 500;
+        mConfirmErrorMessage = "Error confirming photo captured";
 
         //scroll through overlay options
         if (PPWCamera.openCameraJsonArrayArgs != null && PPWCamera.openCameraJsonArrayArgs.length() > 0) {
@@ -298,6 +330,8 @@ public class PPWCameraActivity extends Activity {
             mThumbnail = options.optInt("thumbnail",25);
             mBackNotify = options.optBoolean("backNotify",false);
             mFlashType = options.optString("flashType",FLASH_NAME_AUTO);
+            mConfirmationTimeInterval = options.optInt("confirmTimeInterval",500);
+            mConfirmErrorMessage = options.optString("confirmErrorMessage","Error confirming photo captured");
 
             //setup camera for new values
             setupCamera();
@@ -633,6 +667,10 @@ public class PPWCameraActivity extends Activity {
                     PluginResult result = new PluginResult(PluginResult.Status.OK, output);
                     result.setKeepCallback(true);
                     PPWCamera.openCameraCallbackContext.sendPluginResult(result);
+
+                    //start timer to check for confirmation
+                    mConfirmationTimer.removeCallbacks(showConfirmErrorPopup);
+                    mConfirmationTimer.postDelayed(showConfirmErrorPopup, (long)mConfirmationTimeInterval);
                 }
 
             } catch (Exception e) {

@@ -4,6 +4,9 @@ var PPWCamera = {
 	},
 	closeCamera: function(options, success, failure) {
 		cordova.exec(success, failure, "PPWCamera", "closeCamera", [options]);
+	},
+	confirmPicture: function(options, success, failure){
+		cordova.exec(success, failure, "PPWCamera", "confirmCamera", [options]);
 	}
 };
 module.exports = PPWCamera;
