@@ -9,7 +9,7 @@
 #import "PPWCamera.h"
 #import <AVFoundation/AVFoundation.h>
 
-static PPWCamera *instance;
+static int instanceCount = 0;
 
 @interface PPWCamera () <UIAlertViewDelegate>
 @property NSString* confirmErrorMessage;
@@ -19,17 +19,28 @@ static PPWCamera *instance;
 
 @implementation PPWCamera
 
+- (instancetype)init {
+    if (!(self = [super init])) {
+        return nil;
+    }
+    instanceCount = 0;
+    return self;
+}
+
+-(void)dealloc {
+    instanceCount = 0;
+}
+
+#pragma mark - command methods
+
 // command method
 -(void)openCamera:(CDVInvokedUrlCommand *)command {
     
     //singleton check
-    if (instance) {
+    if (instanceCount>0) {
         [self sendError:@"Another camera instance already exists" code:0];
         return;
     }
-    
-    //set instance
-    instance = self;
     
     // Set the hasPendingOperation field to prevent the webview from crashing (undocumented)
     self.hasPendingOperation = YES;
@@ -45,6 +56,7 @@ static PPWCamera *instance;
     if ([self cameraAccessCheck]) {
         self.overlay = [[PPWCameraViewController alloc] initWithNibName:@"PPWCameraViewController" bundle:nil];
         if (self.overlay) {
+            instanceCount++;
             NSDictionary* options = [command argumentAtIndex:0];
             if (options[@"confirmErrorMessage"]) {
                 self.confirmErrorMessage = options[@"confirmErrorMessage"];
@@ -65,12 +77,6 @@ static PPWCamera *instance;
 
 -(void)closeCamera:(CDVInvokedUrlCommand *)command {
     [self closeCamera];
-    
-    //clear singleton
-    instance = nil;
-    
-    //unset property
-    self.hasPendingOperation = NO;
 }
 
 -(void)confirmCamera:(CDVInvokedUrlCommand *)command {
@@ -125,13 +131,19 @@ static PPWCamera *instance;
 }
 
 -(void)closeCamera {
+    //clear singleton
+    instanceCount--;
+    
+    //unset property
+    self.hasPendingOperation = NO;
+    
+    //remove view
     if (self.overlay) {
         [self.viewController dismissViewControllerAnimated:YES completion:nil];
     }
     else {
         [self sendError:@"Camera could not be closed. Camera activity is not available" code:0];
     }
-    
 }
 
 -(BOOL)cameraAccessCheck {
