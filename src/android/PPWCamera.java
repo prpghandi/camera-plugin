@@ -11,7 +11,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.content.Intent;
@@ -101,7 +103,27 @@ public class PPWCamera extends CordovaPlugin {
         callback.error(output);
     }
     catch (Exception e)
-    {}
+    {
+      PPWCameraActivity a = PPWCameraActivity.getInstance();
+      if (a == null)
+        return;
+
+      new AlertDialog.Builder(a)
+                        .setTitle("Error")
+                        .setMessage("There was an error.  Please restart the app.")
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .setCancelable(false)
+                        .setNegativeButton("OK", new DialogInterface.OnClickListener() {
+                          public void onClick(DialogInterface dialog, int id) {
+                            dialog.cancel();
+                            PPWCameraActivity a = PPWCameraActivity.getInstance();
+                            if (a != null) {
+                              a.finish(); //close activity
+                            }
+                          }
+                        })
+                        .show();
+    }
   }
 
 	/** Check if this device has a camera */
