@@ -41,7 +41,7 @@
                 auto close in 5 sec: <button id="autoCloseBtn">off</button>
             </p>
             <p>
-                auto confirm picture: <button id="autoConfirmBtn">off</button>
+                auto confirm picture: <button id="autoConfirmBtn">on</button>
             </p>
             <script src="js/ppw_camera.js"></script>
             <script>
@@ -103,6 +103,7 @@
                     backNotify: true, //true or false (default to false)
                     confirmErrorMessage: 'Error with photo taken.  Camera plugin will close.',
                     confirmTimeInterval: 500,
+                    dateFontSize: 16,
                     overlay: [
                         {
                             type: 'text', // Plain text (default)
@@ -148,6 +149,76 @@
                             alert(error);
                         });
                     }
+                    function getFileErrorMessage(err) {
+                        console.log("||FileClient.getFileErrorMessage||");
+                        var ret = "";
+                 
+                        switch (err.code) {
+                            case FileError.NOT_FOUND_ERR:
+                                ret = "Not Found Error";
+                                break;
+                            case FileError.SECURITY_ERR:
+                                ret = "Security Error";
+                                break;
+                            case FileError.ABORT_ERR:
+                                ret = "Abort Error";
+                                break;
+                            case FileError.NOT_READABLE_ERR:
+                                ret = "Not Readable Error";
+                                break;
+                            case FileError.ENCODING_ERR:
+                                ret = "Encoding Error";
+                                break;
+                            case FileError.NO_MODIFICATION_ALLOWED_ERR:
+                                ret = "Not Modification Allowed Error";
+                                break;
+                            case FileError.INVALID_STATE_ERR:
+                                ret = "Invalid State Error";
+                                break;
+                            case FileError.SYNTAX_ERR:
+                                ret = "Syntax Error";
+                                break;
+                            case FileError.INVALID_MODIFICATION_ERR:
+                                ret = "Invalid Modification Error";
+                                break;
+                            case FileError.QUOTA_EXCEEDED_ERR:
+                                ret = "Quota Exceeded Error";
+                                break;
+                            case FileError.TYPE_MISMATCH_ERR:
+                                ret = "Type Mismatch Error";
+                                break;
+                            case FileError.PATH_EXISTS_ERR:
+                                ret = "Path Exists Error";
+                                break;
+                            case "null":
+                                ret = "Null Error";
+                                break;
+                            default:
+                                ret = "Undefined Error";
+                        }
+                 
+                        ret = "Error: code " + err.code + " (" + ret + ")";
+                 
+                        return ret;
+                    }; 
+                    var localDir = navigator.userAgent.match(/Android/) ? cordova.file.dataDirectory : cordova.file.cacheDirectory;
+                    window.resolveLocalFileSystemURL(localDir,function(dirEntry) {
+                        window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, function(fileSys) { 
+                            dirEntry.getFile(output.lastModifiedDate+'.'+output.type, {create: false, exclusive: false}, function(fileEntry) {
+                                window.resolveLocalFileSystemURL(fileSys.root.toURL(), function(storageEntry) {
+                                    fileEntry.copyTo(storageEntry);
+                                }, function(error) {
+                                    alert(getFileErrorMessage(error));
+                                });
+                            }, function(error) {
+                                alert(getFileErrorMessage(error));
+                            }); 
+                        }, function(error) {
+                            alert(getFileErrorMessage(error));
+                        }); 
+                    }, function(error) {
+                        alert(getFileErrorMessage(error));
+                    });
                 },
                 function(error){
                     alert(error.message);

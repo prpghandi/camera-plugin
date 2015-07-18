@@ -140,6 +140,7 @@ static int instanceCount = 0;
     //remove view
     if (self.overlay) {
         [self.viewController dismissViewControllerAnimated:YES completion:nil];
+        self.overlay = nil;
     }
     else {
         [self sendError:@"Camera could not be closed. Camera activity is not available" code:0];
@@ -185,6 +186,9 @@ static int instanceCount = 0;
     [self sendError:nil code:0];
 }
 
+//code 0: general error
+//code 1: close clicked
+//code 2: back clicked
 -(void)sendError:(NSString*)msg code:(int)errorId{
     if (!msg) {
         errorId = 0;

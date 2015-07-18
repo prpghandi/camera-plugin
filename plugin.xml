@@ -3,7 +3,7 @@
 		xmlns:android="http://schemas.android.com/apk/res/android"
 		xmlns:rim="http://www.blackberry.com/ns/widgets"
 		id="com.appnovation.ppw-camera"
-		version="1.0.12">
+		version="1.0.14">
 
 	<name>PPW Camera</name>
 	<description>PhoneGap plugin to support a custom camera overlay</description>
@@ -47,9 +47,22 @@
 			</array>
     </config-file> 
 
+    <config-file target="*-Info.plist" parent="NSLocationWhenInUseUsageDescription">
+    	<string>Required to Save Photo GPS Data</string>
+    </config-file> 
+
+    <config-file target="*-Info.plist" parent="UIFileSharingEnabled">
+    	<true/>
+    </config-file>
+
     <framework src="QuartzCore.framework" />
     <framework src="UIKit.framework" />
     <framework src="AVFoundation.framework" />
+    <framework src="ImageIO.framework" />
+    <framework src="AssetsLibrary.framework" />
+    <framework src="CoreGraphics.framework" />
+    <framework src="MobileCoreServices.framework" />
+    <framework src="CoreLocation.framework" />
 
 	</platform>
 
@@ -70,10 +83,12 @@
     <source-file src="src/android/PPWCameraActivity.java" target-dir="src/com/appnovation/ppw_camera" />
     <source-file src="src/android/PPWCameraPreview.java" target-dir="src/com/appnovation/ppw_camera" />
     <source-file src="src/android/activity_ppw_camera.xml" target-dir="res/layout"/>
+    <source-file src="src/android/sanselan-0.97-incubator.jar" target-dir="libs" />
 
     <config-file target="AndroidManifest.xml" parent="/manifest">
 	    <uses-permission android:name="android.permission.CAMERA" />
 	    <uses-permission android:name="android.permission.FLASHLIGHT" />
+	    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 	    <uses-feature android:name="android.hardware.camera" />
 	    <uses-feature android:name="android.hardware.camera.autofocus" />
 	    <uses-feature android:name="android.hardware.camera.flash" />

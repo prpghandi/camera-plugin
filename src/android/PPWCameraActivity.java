@@ -2,10 +2,17 @@ package com.appnovation.ppw_camera;
 
 import org.apache.cordova.PluginResult;
 
+import org.apache.sanselan.Sanselan;
+import org.apache.sanselan.formats.jpeg.exifRewrite.ExifRewriter;
+import org.apache.sanselan.formats.tiff.write.TiffOutputSet;
+import org.apache.sanselan.formats.tiff.TiffImageMetadata;
+import org.apache.sanselan.formats.jpeg.JpegImageMetadata;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -18,6 +25,7 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.PorterDuff;
+import android.graphics.Paint.Style;
 import android.hardware.Camera;
 import android.hardware.Camera.Size;
 import android.os.Bundle;
@@ -41,6 +49,9 @@ import android.view.Display;
 import android.graphics.Point;
 import android.os.Build;
 import android.os.Handler;
+import android.location.LocationListener;
+import android.location.Location;
+import android.location.LocationManager;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -51,9 +62,12 @@ import java.io.FileOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Date;
 import java.lang.Runnable;
+import java.text.DateFormat;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -82,6 +96,7 @@ public class PPWCameraActivity extends Activity {
     private int mThumbnail;
     private boolean mBackNotify;
     private String mFlashType = null;
+    private int mDateFontSize;
 
     ImageButton thumbButton;
     ImageButton imageViewButton;
@@ -92,6 +107,10 @@ public class PPWCameraActivity extends Activity {
     private String mConfirmErrorMessage;
     private float mConfirmationTimeInterval;
     private Handler mConfirmationTimer = new Handler();
+
+    //GPS Data
+    private Location mLocation;
+    private LocationManager mLocationMgr;
 
     public static PPWCameraActivity getInstance() {
         return mInstance;
@@ -112,6 +131,11 @@ public class PPWCameraActivity extends Activity {
         }
         mInstance = null;
         mInit = false;
+        if (mLocationMgr != null) {
+            mLocationMgr.removeUpdates(mLocationListener);
+            mLocationMgr = null;
+            mLocation = null;
+        }
     }
 
     @Override
@@ -151,6 +175,17 @@ public class PPWCameraActivity extends Activity {
        }
     };
 
+    private final LocationListener mLocationListener = new LocationListener() {
+        @Override
+        public void onLocationChanged(final Location location) {
+            Log.d(TAG,"Location update: "+location.toString());
+            mLocation = location;
+        }
+        public void onStatusChanged(String provider, int status, Bundle extras) {}
+        public void onProviderEnabled(String provider) {}
+        public void onProviderDisabled(String provider) {}
+    };
+
     public void init() {
         if (mInit) {
             return;
@@ -158,6 +193,30 @@ public class PPWCameraActivity extends Activity {
         mInit = true; //don't initialize more than once
 
         setContentView(getR("layout","activity_ppw_camera"));
+
+        //init gps
+        mLocationMgr = (LocationManager) getSystemService(LOCATION_SERVICE);
+        if (!mLocationMgr.isProviderEnabled( LocationManager.GPS_PROVIDER ) &&
+                !mLocationMgr.isProviderEnabled( LocationManager.NETWORK_PROVIDER )) { 
+            new AlertDialog.Builder(PPWCameraActivity.this)
+                            .setTitle("Error")
+                            .setMessage("Location data is not available")
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .setCancelable(true)
+                            .setNegativeButton("OK", new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int id) {
+                                    dialog.cancel();
+                                    // startActivity(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                                }
+                            })
+                            .show();
+        }
+        mLocationMgr.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0, mLocationListener);
+        mLocationMgr.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 1000, 0, mLocationListener);
+        mLocation = mLocationMgr.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        if (mLocation == null) {
+            mLocation = mLocationMgr.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+        }
 
         //output custom data
         mDataOutput = new HashMap<String,String>();
@@ -294,6 +353,17 @@ public class PPWCameraActivity extends Activity {
                         mTakePictureMutex = false;
                         Toast.makeText(PPWCameraActivity.this, "Saving...",Toast.LENGTH_SHORT).show();
                         try {
+                            //add updated gps data
+                            if (mLocation != null) {
+                                Camera.Parameters params = getCameraInstance().getParameters();
+                                params.removeGpsData();
+                                params.setGpsLatitude(mLocation.getLatitude());
+                                params.setGpsLongitude(mLocation.getLongitude());
+                                params.setGpsAltitude(mLocation.getAltitude());
+                                params.setGpsTimestamp((long)(mLocation.getTime()*0.001));
+                                params.setGpsProcessingMethod(mLocation.getProvider());
+                                getCameraInstance().setParameters(params);
+                            }
                             getCameraInstance().takePicture(mShutter, null, mPicture);
                         } catch (Exception e) {
                             Log.d(TAG,"exception on picture taking "+e.getMessage());
@@ -315,6 +385,7 @@ public class PPWCameraActivity extends Activity {
         mFlashType = FLASH_NAME_AUTO;
         mConfirmationTimeInterval = 500;
         mConfirmErrorMessage = "Error confirming photo captured";
+        mDateFontSize = 20;
 
         //scroll through overlay options
         if (PPWCamera.openCameraJsonArrayArgs != null && PPWCamera.openCameraJsonArrayArgs.length() > 0) {
@@ -332,6 +403,7 @@ public class PPWCameraActivity extends Activity {
             mFlashType = options.optString("flashType",FLASH_NAME_AUTO);
             mConfirmationTimeInterval = options.optInt("confirmTimeInterval",500);
             mConfirmErrorMessage = options.optString("confirmErrorMessage","Error confirming photo captured");
+            mDateFontSize = options.optInt("dateFontSize",20);
 
             //setup camera for new values
             setupCamera();
@@ -477,7 +549,7 @@ public class PPWCameraActivity extends Activity {
                         Camera.Parameters params = getCameraInstance().getParameters();
                         String currentFlash = params.getFlashMode();
                         Log.d(TAG,"current flash "+currentFlash);
-                        String nextFlash = currentFlash;
+                        String nextFlash = supportedFlash.get(0);
                         if (currentFlash.compareTo(Camera.Parameters.FLASH_MODE_AUTO) == 0) {
                             if (supportedFlash.contains(Camera.Parameters.FLASH_MODE_TORCH)) {
                                 nextFlash = Camera.Parameters.FLASH_MODE_TORCH;
@@ -506,9 +578,9 @@ public class PPWCameraActivity extends Activity {
                             if (supportedFlash.contains(Camera.Parameters.FLASH_MODE_AUTO)) {
                                 nextFlash = Camera.Parameters.FLASH_MODE_AUTO;
                             }
-                        }
-                        if (!supportedFlash.contains(nextFlash)) {
-                            nextFlash = supportedFlash.get(0);
+                            else {
+                                currentFlash = Camera.Parameters.FLASH_MODE_AUTO;
+                            }
                         }
                         Log.d(TAG,"next flash "+nextFlash);
                         int nextColor = Color.WHITE;
@@ -591,10 +663,10 @@ public class PPWCameraActivity extends Activity {
                 long blockSize = stat.getBlockSize();
                 long availableBlocks = stat.getAvailableBlocks();
                 long availableBytes = blockSize*availableBlocks;
-                byte[] imageResize = resizeImage(imageData, mPhotoWidth, mPhotoHeight);
+                byte[] imageResize = resizeImage(imageData, mPhotoWidth, mPhotoHeight, true);
                 byte[] imageThumb = null;
                 if (mThumbnail > 0) {
-                    imageThumb = resizeImage(imageResize, (int)(mPhotoWidth*mThumbnail*0.01f), (int)(mPhotoHeight*mThumbnail*0.01f));
+                    imageThumb = resizeImage(imageResize, (int)(mPhotoWidth*mThumbnail*0.01f), (int)(mPhotoHeight*mThumbnail*0.01f), false);
                 }
                 int dataLength = imageResize.length;
                 if (mThumbnail > 0) {
@@ -614,6 +686,11 @@ public class PPWCameraActivity extends Activity {
 
                 //save if space available
                 else {
+                    //add meta deta
+                    if (mEncodingType.compareToIgnoreCase("png") != 0) {
+                        imageResize = addJPEGExifTagsFromSource(imageData, imageResize);
+                    }
+
                     //create new
                     FileOutputStream fos = openFileOutput(FILENAME, Context.MODE_PRIVATE);
                     fos.write(imageResize);
@@ -721,16 +798,44 @@ public class PPWCameraActivity extends Activity {
     /*
      * Image modifiers
      */
-    byte[] resizeImage(byte[] input, int width, int height) {
+    byte[] resizeImage(byte[] input, int width, int height, boolean shouldTimeStamp) {
 
         //down scale and crop image
         Bitmap original = BitmapFactory.decodeByteArray(input, 0, input.length);
         Bitmap resized = ThumbnailUtils.extractThumbnail(original, width, height, ThumbnailUtils.OPTIONS_RECYCLE_INPUT);
+        Bitmap dest = resized;
+        
+        //add timestamp to photo
+        if (shouldTimeStamp) {
+            dest = Bitmap.createBitmap(resized.getWidth(), resized.getHeight(), Bitmap.Config.ARGB_8888);
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss");
+            final String dateTime = sdf.format(new Date()); // reading local time in the system
+            final Canvas canvas = new Canvas(dest);
+            final Paint fillPaint = new Paint();
+            fillPaint.setTextSize(mDateFontSize*(((float)width)/mPhotoWidth));
+            fillPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+            fillPaint.setColor(Color.YELLOW);
+            fillPaint.setStyle(Style.FILL);
+            final Paint strokePaint = new Paint(fillPaint);
+            strokePaint.setTextSize(mDateFontSize*(((float)width)/mPhotoWidth));
+            strokePaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+            strokePaint.setColor(Color.DKGRAY);
+            strokePaint.setStyle(Style.STROKE);
+            strokePaint.setStrokeWidth(2);
+            canvas.drawBitmap(resized, 0f, 0f, null);
+            final float dateHeight = fillPaint.measureText("yY");
+            final float dateWidth = fillPaint.measureText(dateTime, 0, dateTime.length());
+            final float datePadding = 10;
+            canvas.drawText(dateTime, width-dateWidth-datePadding, height-datePadding, strokePaint);
+            canvas.drawText(dateTime, width-dateWidth-datePadding, height-datePadding, fillPaint);
+        }         
+        
+        //set encoding format
         ByteArrayOutputStream blob = new ByteArrayOutputStream();
         if (mEncodingType.compareToIgnoreCase("png") == 0) {
-            resized.compress(Bitmap.CompressFormat.PNG, mQuality, blob);
+            dest.compress(Bitmap.CompressFormat.PNG, mQuality, blob);
         } else {
-            resized.compress(Bitmap.CompressFormat.JPEG, mQuality, blob);
+            dest.compress(Bitmap.CompressFormat.JPEG, mQuality, blob);
         }
         resized.recycle();
 
@@ -779,5 +884,31 @@ public class PPWCameraActivity extends Activity {
             hexChars[j * 2 + 1] = hexArray[v & 0x0F];
         }
         return new String(hexChars);
+    }
+
+    /*
+     * Exif tagging
+     */
+    private byte[] addJPEGExifTagsFromSource(byte[] sourceMetaData, byte[] destImageData) {
+        try {
+            TiffOutputSet outputSet = null;
+            JpegImageMetadata metadata = (JpegImageMetadata)Sanselan.getMetadata(sourceMetaData);
+            if (null != metadata) {
+                TiffImageMetadata exif = metadata.getExif();
+                if (null != exif) {
+                    outputSet = exif.getOutputSet();
+                }
+            }
+            if (null != outputSet) {
+                ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                ExifRewriter ER = new ExifRewriter();
+                ER.updateExifMetadataLossless(destImageData, bos, outputSet);
+                return bos.toByteArray();
+            }
+        } catch (Exception e) {
+            Log.d(TAG,"Exception on exif adding: "+e.getMessage());
+            sendError();
+        }
+        return destImageData;
     }
 }

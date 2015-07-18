@@ -9,11 +9,14 @@
 #import "PPWCamera.h"
 #import "PPWCameraViewController.h"
 #import "MBProgressHUD.h"
+
 #import <QuartzCore/QuartzCore.h>
 #import <UIKit/UIKit.h>
-#import <CommonCrypto/CommonDigest.h>
-#import <CommonCrypto/CommonHMAC.h>
+#import <CommonCrypto/CommonCrypto.h>
 #import <AVFoundation/AVFoundation.h>
+#import <AssetsLibrary/AssetsLibrary.h>
+#import <ImageIO/ImageIO.h>
+#import <CoreLocation/CoreLocation.h>
 
 #define MAX_ZOOM 3
 #define SECRET_KEY @"password"
@@ -77,6 +80,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     float mPhotoScale;
     float mPhotoScaleLast;
     CGAffineTransform mPreviewTranform;
+    float mDateFontSize;
 }
 @property (strong, nonatomic) UIView *preview;
 @property (strong, nonatomic) IBOutlet UIButton *flashBtn;
@@ -85,6 +89,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 @property (strong, nonatomic) IBOutlet UIButton *thumbnailBtn;
 @property (strong, nonatomic) IBOutlet UIImageView *imageView;
 @property (strong, nonatomic) IBOutlet UIButton *imageViewBtn;
+@property (strong, nonatomic) CLLocationManager* locationManager;
 @end
 
 @implementation PPWCameraViewController
@@ -141,6 +146,15 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 
 -(void)viewDidLoad {
     [super viewDidLoad];
+    
+    //initialize GPS
+    self.locationManager = [CLLocationManager new];
+    self.locationManager.desiredAccuracy = kCLLocationAccuracyBest;
+    self.locationManager.distanceFilter = kCLDistanceFilterNone;
+    if ([self.locationManager respondsToSelector:@selector(requestWhenInUseAuthorization)]) {
+        [self.locationManager requestWhenInUseAuthorization];
+    }
+    [self.locationManager startUpdatingLocation];
     
     //initialize parameters
     mPhotoScale = 1;
@@ -210,6 +224,9 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
         [self.picker removeFromParentViewController];
         [self.picker didMoveToParentViewController:nil];
     }
+    if (self.locationManager) {
+        [self.locationManager stopUpdatingLocation];
+    }
 }
 
 - (void)setOptions:(NSDictionary*)options {
@@ -223,6 +240,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     mThumbnail = 25;
     mBackNotify = NO;
     mDataOutput = [[NSMutableArray alloc] init];
+    mDateFontSize = 20;
     
     //scroll through overlay options
     if (!options || options.count <= 0)
@@ -246,7 +264,9 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
         mThumbnail = [options[@"thumbnail"] intValue];
     if (options[@"backNotify"])
         mBackNotify = [options[@"backNotify"] boolValue];
-    
+    if (options[@"dateFontSize"])
+        mDateFontSize = [options[@"dateFontSize"] intValue];
+        
     NSArray* overlay = options[@"overlay"];
     if (!overlay)
         return;
@@ -502,10 +522,17 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     
     // Image taken
     UIImage* image = [info objectForKey:UIImagePickerControllerOriginalImage];
-    UIImage* imageResize = [self resizeImage:image];
+    
+    // Get Date String
+    NSDictionary *metadataDictionary = (NSDictionary *)[info valueForKey:UIImagePickerControllerMediaMetadata];
+    NSDictionary *tiffMetadata = (NSDictionary *)[metadataDictionary valueForKey:(NSString *)kCGImagePropertyTIFFDictionary];
+    NSString* dateString = [tiffMetadata valueForKey:(NSString *)kCGImagePropertyTIFFDateTime];
+    
+    //resize images
+    UIImage* imageResize = [self resizeImage:image date:dateString];
     UIImage* imageThumb = nil;
     if (mThumbnail > 0) {
-        imageThumb = [self resizeImage:image width:imageResize.size.width*(mThumbnail*0.01f) height:imageResize.size.height*(mThumbnail*0.01f) scale:mPhotoScale];
+        imageThumb = [self resizeImage:image width:imageResize.size.width*(mThumbnail*0.01f) height:imageResize.size.height*(mThumbnail*0.01f) scale:mPhotoScale date:dateString];
     }
     
     // Image path
@@ -544,6 +571,9 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
         [alert show];
     }
     else {
+        //add exif meta data
+        imageData = [self taggedImageData:imageData metadata:metadataDictionary orientation:image.imageOrientation];
+        
         // Write the data to the file
         [imageData writeToFile:imagePath atomically:YES];
         if (imageDataThumb) {
@@ -595,11 +625,11 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 
 #pragma mark - image scale and crop
 
-- (UIImage*)resizeImage:(UIImage*)image {
-    return[self resizeImage:image width:mPhotoWidth height:mPhotoHeight scale:mPhotoScale];
+- (UIImage*)resizeImage:(UIImage*)image date:(NSString*)dateString {
+    return [self resizeImage:image width:mPhotoWidth height:mPhotoHeight scale:mPhotoScale date:dateString];
 }
 
-- (UIImage*)resizeImage:(UIImage*)image width:(float)photoWidth height:(float)photoHeight scale:(float)photoScale {
+- (UIImage*)resizeImage:(UIImage*)image width:(float)photoWidth height:(float)photoHeight scale:(float)photoScale date:(NSString*)dateString{
     float previewRatio = mPreviewWidth / mPreviewHeight;
     float width = CAMERA_ASPECT*photoHeight;
     float height = photoHeight;
@@ -625,6 +655,19 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     CGRect cropRect = CGRectMake((photoWidth-(width*photoScale))*0.5f, (photoHeight-(height*photoScale))*0.5f, width*photoScale, height*photoScale);
     UIRectClip(cropRect);
     [image drawInRect:cropRect];
+    
+    // Position the date in the bottom right
+    NSDictionary* attributes = @{NSFontAttributeName : [UIFont fontWithName:@"GillSans-Bold" size:mDateFontSize * (photoWidth/mPhotoWidth)],
+                                 NSStrokeColorAttributeName : [UIColor darkGrayColor],
+                                 NSForegroundColorAttributeName : [UIColor yellowColor],
+                                 NSStrokeWidthAttributeName : @-5.0};
+    
+    const CGFloat dateWidth = [dateString sizeWithAttributes:attributes].width;
+    const CGFloat dateHeight = [dateString sizeWithAttributes:attributes].height;
+    const CGFloat datePadding = 5;
+    [dateString drawAtPoint:CGPointMake(cropRect.size.width - dateWidth - datePadding, cropRect.size.height - dateHeight - datePadding)
+             withAttributes:attributes];
+    
     UIImage* scaleImage = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
     
@@ -639,9 +682,8 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 
 #pragma mark - HMAC-SHA512 encoding
 
+/* Returns hexadecimal string of NSData. Empty string if data is empty.   */
 - (NSString *)hexadecimalString:(NSData *)data {
-    /* Returns hexadecimal string of NSData. Empty string if data is empty.   */
-    
     const unsigned char *dataBuffer = (const unsigned char *)[data bytes];
     
     if (!dataBuffer)
@@ -670,6 +712,84 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     NSString *hash = [HMAC base64EncodedStringWithOptions:NSDataBase64Encoding64CharacterLineLength];
     
     return hash;
+}
+
+#pragma mark - exif tagging
+
+- (NSData *)writeMetadataIntoImageData:(NSData *)imageData metadata:(NSMutableDictionary *)metadata {
+
+    CGImageSourceRef source = CGImageSourceCreateWithData((__bridge CFDataRef) imageData, NULL);
+    CFStringRef UTI = CGImageSourceGetType(source);
+    NSMutableData *dest_data = [NSMutableData data];
+    CGImageDestinationRef destination = CGImageDestinationCreateWithData((__bridge CFMutableDataRef)dest_data, UTI, 1, NULL);
+    if (!destination) {
+        [self.plugin sendError:@"Error: Could not create image destination" code:0];
+    }
+    CGImageDestinationAddImageFromSource(destination, source, 0, (__bridge CFDictionaryRef) metadata);
+    BOOL success = NO;
+    success = CGImageDestinationFinalize(destination);
+    if (!success) {
+        [self.plugin sendError:@"Error: Could not create data from image destination" code:0];
+    }
+    CFRelease(destination);
+    CFRelease(source);
+    return dest_data;
+}
+
+- (NSData *)taggedImageData:(NSData *)imageData metadata:(NSDictionary *)metadata orientation:(UIImageOrientation)orientation {
+    CLLocation *location = [self.locationManager location];
+    NSMutableDictionary *newMetadata = [NSMutableDictionary dictionaryWithDictionary:metadata];
+    if (!newMetadata[(NSString *)kCGImagePropertyGPSDictionary] && location) {
+        newMetadata[(NSString *)kCGImagePropertyGPSDictionary] = [self gpsDictionaryForLocation:location];
+    }
+    
+    // Reference: http://sylvana.net/jpegcrop/exif_orientation.html
+    /* The intended display orientation of the image. If present, the value
+     * of this key is a CFNumberRef with the same value as defined by the
+     * TIFF and Exif specifications.  That is:
+     *   1  =  0th row is at the top, and 0th column is on the left.
+     *   2  =  0th row is at the top, and 0th column is on the right.
+     *   3  =  0th row is at the bottom, and 0th column is on the right.
+     *   4  =  0th row is at the bottom, and 0th column is on the left.
+     *   5  =  0th row is on the left, and 0th column is the top.
+     *   6  =  0th row is on the right, and 0th column is the top.
+     *   7  =  0th row is on the right, and 0th column is the bottom.
+     *   8  =  0th row is on the left, and 0th column is the bottom.
+     * If not present, a value of 1 is assumed. */
+    int newOrientation;
+    switch (orientation) {
+        case UIImageOrientationUp: newOrientation = 1; break;
+        case UIImageOrientationDown: newOrientation = 3; break;
+        case UIImageOrientationLeft: newOrientation = 8; break;
+        case UIImageOrientationRight: newOrientation = 6; break;
+        case UIImageOrientationUpMirrored: newOrientation = 2; break;
+        case UIImageOrientationDownMirrored: newOrientation = 4; break;
+        case UIImageOrientationLeftMirrored: newOrientation = 5; break;
+        case UIImageOrientationRightMirrored: newOrientation = 7; break;
+        default:
+            newOrientation = -1;
+    }
+    if (newOrientation != -1) {
+        newMetadata[(NSString *)kCGImagePropertyOrientation] = @(newOrientation);
+    }
+    NSData *newImageData = [self writeMetadataIntoImageData:imageData metadata:newMetadata];
+    return newImageData;
+}
+
+- (NSDictionary *)gpsDictionaryForLocation:(CLLocation *)location {
+    NSTimeZone      *timeZone   = [NSTimeZone timeZoneWithName:@"UTC"];
+    NSDateFormatter *timeFormatter  = [NSDateFormatter new];
+    [timeFormatter setTimeZone:timeZone];
+    [timeFormatter setDateFormat:@"HH:mm:ss.SS"];
+    
+    NSDictionary *gpsDict = @{(NSString *)kCGImagePropertyGPSLatitude: @(fabs(location.coordinate.latitude)),
+                              (NSString *)kCGImagePropertyGPSLatitudeRef: ((location.coordinate.latitude >= 0) ? @"N" : @"S"),
+                              (NSString *)kCGImagePropertyGPSLongitude: @(fabs(location.coordinate.longitude)),
+                              (NSString *)kCGImagePropertyGPSLongitudeRef: ((location.coordinate.longitude >= 0) ? @"E" : @"W"),
+                              (NSString *)kCGImagePropertyGPSTimeStamp: [timeFormatter stringFromDate:[location timestamp]],
+                              (NSString *)kCGImagePropertyGPSAltitude: @(fabs(location.altitude)),
+                              };
+    return gpsDict;
 }
 
 @end
