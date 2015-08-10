@@ -97,6 +97,7 @@ public class PPWCameraActivity extends Activity {
     private boolean mBackNotify;
     private String mFlashType = null;
     private int mDateFontSize;
+    private String mDateFormat;
 
     ImageButton thumbButton;
     ImageButton imageViewButton;
@@ -404,6 +405,7 @@ public class PPWCameraActivity extends Activity {
             mConfirmationTimeInterval = options.optInt("confirmTimeInterval",500);
             mConfirmErrorMessage = options.optString("confirmErrorMessage","Error confirming photo captured");
             mDateFontSize = options.optInt("dateFontSize",20);
+            mDateFormat = options.optString("dateFormat","");
 
             //setup camera for new values
             setupCamera();
@@ -808,7 +810,7 @@ public class PPWCameraActivity extends Activity {
         //add timestamp to photo
         if (shouldTimeStamp) {
             dest = Bitmap.createBitmap(resized.getWidth(), resized.getHeight(), Bitmap.Config.ARGB_8888);
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss");
+            SimpleDateFormat sdf = new SimpleDateFormat(mDateFormat);
             final String dateTime = sdf.format(new Date()); // reading local time in the system
             final Canvas canvas = new Canvas(dest);
             final Paint fillPaint = new Paint();

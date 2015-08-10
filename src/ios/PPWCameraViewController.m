@@ -81,6 +81,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     float mPhotoScaleLast;
     CGAffineTransform mPreviewTranform;
     float mDateFontSize;
+    NSString* mDateFormat;
 }
 @property (strong, nonatomic) UIView *preview;
 @property (strong, nonatomic) IBOutlet UIButton *flashBtn;
@@ -241,6 +242,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     mBackNotify = NO;
     mDataOutput = [[NSMutableArray alloc] init];
     mDateFontSize = 20;
+    mDateFormat = @"";
     
     //scroll through overlay options
     if (!options || options.count <= 0)
@@ -266,6 +268,8 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
         mBackNotify = [options[@"backNotify"] boolValue];
     if (options[@"dateFontSize"])
         mDateFontSize = [options[@"dateFontSize"] intValue];
+    if (options[@"dateFormat"])
+        mDateFormat = options[@"dateFormat"];
         
     NSArray* overlay = options[@"overlay"];
     if (!overlay)
@@ -525,8 +529,9 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     
     // Get Date String
     NSDictionary *metadataDictionary = (NSDictionary *)[info valueForKey:UIImagePickerControllerMediaMetadata];
-    NSDictionary *tiffMetadata = (NSDictionary *)[metadataDictionary valueForKey:(NSString *)kCGImagePropertyTIFFDictionary];
-    NSString* dateString = [tiffMetadata valueForKey:(NSString *)kCGImagePropertyTIFFDateTime];
+    NSDateFormatter *timeFormatter  = [NSDateFormatter new];
+    [timeFormatter setDateFormat:mDateFormat];
+    NSString* dateString = [timeFormatter stringFromDate:[NSDate date]];
     
     //resize images
     UIImage* imageResize = [self resizeImage:image date:dateString];
