@@ -15,6 +15,7 @@ static int instanceCount = 0;
 @property NSString* confirmErrorMessage;
 @property NSTimeInterval confirmationTimeInterval;
 @property NSTimer* confirmationTimer;
+@property UIWindow* window;
 @end
 
 @implementation PPWCamera
@@ -28,6 +29,7 @@ static int instanceCount = 0;
 }
 
 -(void)dealloc {
+    self.window = nil;
     instanceCount = 0;
 }
 
@@ -67,7 +69,12 @@ static int instanceCount = 0;
             [self.overlay setOptions:options];
             self.overlay.plugin = self;
             self.overlay.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
-            [self.viewController presentViewController:self.overlay animated:NO completion:nil];
+            
+            // add new ui window for PPWCameraViewController
+            CGSize screenSize = [UIScreen mainScreen].bounds.size;
+            self.window = [[UIWindow alloc] initWithFrame: CGRectMake(0, 0, screenSize.width, screenSize.height)];
+            self.window.rootViewController = self.overlay;
+            [self.window makeKeyAndVisible];
         }
         else {
             [self sendError:@"Error presenting camera view" code:0];
@@ -133,6 +140,9 @@ static int instanceCount = 0;
 -(void)closeCamera {
     //clear singleton
     instanceCount--;
+    
+    // remove window
+    self.window = nil;
     
     //unset property
     self.hasPendingOperation = NO;
