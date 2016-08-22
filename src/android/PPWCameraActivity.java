@@ -377,7 +377,7 @@ public class PPWCameraActivity extends Activity {
         }
 
         // this is the button that handles click events, the actual close button only acts as a visual
-        final Button button_exit_tap = (Button) findViewById(R.id.button_exit_tap);
+        final Button button_exit_tap = (Button) findViewById(getR("id", "button_exit_tap"));
         if (button_exit_tap != null) {
             button_exit_tap.setOnClickListener(new View.OnClickListener() {
                 @Override
