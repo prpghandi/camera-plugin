@@ -12,10 +12,10 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Matrix;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -28,18 +28,24 @@ import android.graphics.PorterDuff;
 import android.graphics.Paint.Style;
 import android.hardware.Camera;
 import android.hardware.Camera.Size;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.StatFs;
 import android.text.format.Formatter;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.KeyEvent;
+import android.view.OrientationEventListener;
+import android.view.Surface;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
+import android.view.animation.LayoutAnimationController;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
-import android.widget.ImageView;
 import android.widget.ImageButton;
 import android.widget.Toast;
 import android.media.ThumbnailUtils;
@@ -67,7 +73,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Date;
 import java.lang.Runnable;
-import java.text.DateFormat;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -84,6 +89,8 @@ public class PPWCameraActivity extends Activity {
     private static final String FLASH_NAME_ON = "on";
     private static final String FLASH_NAME_OFF = "off";
 
+    private final int ORIENTATION_DETECTION_THRESHOLD = 40;
+
     private static Camera mCamera;
     private PPWCameraPreview mPreview;
     private static HashMap<String,String> mDataOutput;
@@ -98,6 +105,7 @@ public class PPWCameraActivity extends Activity {
     private String mFlashType = null;
     private int mDateFontSize;
     private String mDateFormat;
+    private boolean mShutterSoundOff;
 
     ImageButton thumbButton;
     ImageButton imageViewButton;
@@ -113,6 +121,10 @@ public class PPWCameraActivity extends Activity {
     private Location mLocation;
     private LocationManager mLocationMgr;
 
+    // rotation handler
+    private OrientationEventListener mOrientationListener;
+    private boolean mIsOrientationLandscapeRight = false;
+
     public static PPWCameraActivity getInstance() {
         return mInstance;
     }
@@ -120,7 +132,7 @@ public class PPWCameraActivity extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        init(); 
+        init();
     }
 
     @Override
@@ -130,6 +142,10 @@ public class PPWCameraActivity extends Activity {
             mCamera = null;
             mPreview.clearCamera(); // release the camera immediately to fix pause crash
         }
+
+        if (mOrientationListener != null)
+            mOrientationListener.disable();
+
         mInstance = null;
         mInit = false;
         if (mLocationMgr != null) {
@@ -152,6 +168,25 @@ public class PPWCameraActivity extends Activity {
         if (mBackNotify) {
             PPWCamera.sendError("back button clicked",2,PPWCamera.openCameraCallbackContext);
         }
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        /* since onKeyDown is called many times, if the key is held down, we do our actions in onKeyUp
+           because this gets called once only.
+        */
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+            takePicture();
+        }
+
+        return true;
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // This prevents volume from changing if the user presses any of the volume keys
+        // we also don't block events for any other keys than the two volume buttons
+        return keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP;
     }
 
     public void confirmCamera() {
@@ -179,12 +214,18 @@ public class PPWCameraActivity extends Activity {
     private final LocationListener mLocationListener = new LocationListener() {
         @Override
         public void onLocationChanged(final Location location) {
-            Log.d(TAG,"Location update: "+location.toString());
+            Log.d(TAG, "Location update: " + location.toString());
             mLocation = location;
         }
-        public void onStatusChanged(String provider, int status, Bundle extras) {}
-        public void onProviderEnabled(String provider) {}
-        public void onProviderDisabled(String provider) {}
+
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+        }
+
+        public void onProviderEnabled(String provider) {
+        }
+
+        public void onProviderDisabled(String provider) {
+        }
     };
 
     public void init() {
@@ -195,10 +236,35 @@ public class PPWCameraActivity extends Activity {
 
         setContentView(getR("layout","activity_ppw_camera"));
 
+        mOrientationListener = new OrientationEventListener(this, SensorManager.SENSOR_DELAY_NORMAL) {
+            @Override
+            public void onOrientationChanged(int orientation) {
+                if (orientation >= (270 - ORIENTATION_DETECTION_THRESHOLD) && orientation <= (270 + ORIENTATION_DETECTION_THRESHOLD)) {
+                    if (mIsOrientationLandscapeRight) {
+                        if (mPreview != null)
+                            mPreview.changeOrientation(0);
+
+                        mIsOrientationLandscapeRight = false;
+                    }
+                } else if (orientation >= (90 - ORIENTATION_DETECTION_THRESHOLD) && orientation <= (90 + ORIENTATION_DETECTION_THRESHOLD)) {
+                    if (!mIsOrientationLandscapeRight) {
+                        if (mPreview != null)
+                            mPreview.changeOrientation(180);
+                        mIsOrientationLandscapeRight = true;
+                    }
+                }
+            }
+        };
+
+        // start listener for orientation changes
+        if (mOrientationListener.canDetectOrientation()) {
+            mOrientationListener.enable();
+        }
+
         //init gps
         mLocationMgr = (LocationManager) getSystemService(LOCATION_SERVICE);
         if (!mLocationMgr.isProviderEnabled( LocationManager.GPS_PROVIDER ) &&
-                !mLocationMgr.isProviderEnabled( LocationManager.NETWORK_PROVIDER )) { 
+                !mLocationMgr.isProviderEnabled( LocationManager.NETWORK_PROVIDER )) {
             new AlertDialog.Builder(PPWCameraActivity.this)
                             .setTitle("Error")
                             .setMessage("Location data is not available")
@@ -262,6 +328,7 @@ public class PPWCameraActivity extends Activity {
                 {
                 }
             }
+
             @Override
             protected void onMeasure( int widthMeasureSpec, int heightMeasureSpec ) {
                 int height = actualHeight;
@@ -275,6 +342,7 @@ public class PPWCameraActivity extends Activity {
                 }
                 setMeasuredDimension(width, height);
             }
+
             @Override
             protected void onLayout( boolean changed, int l, int t, int r, int b) {
                 if (cameraPreview != null) {
@@ -303,21 +371,29 @@ public class PPWCameraActivity extends Activity {
         preview.addView(croppedPreview);
         croppedPreview.addView(mPreview);
 
+        int initialOrientation = ((WindowManager) getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getOrientation();
+        if (initialOrientation == Surface.ROTATION_270) {
+            mPreview.changeOrientation(180);
+        }
+
+        // this is the button that handles click events, the actual close button only acts as a visual
+        final Button button_exit_tap = (Button) findViewById(getR("id", "button_exit_tap"));
+        if (button_exit_tap != null) {
+            button_exit_tap.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    finish();
+                    if (mBackNotify) {
+                        PPWCamera.sendError("close button clicked", 1, PPWCamera.openCameraCallbackContext);
+                    }
+                }
+            });
+        }
+
         // Add a listener to the Close button
         final Button closeButton = (Button) findViewById(getR("id","button_exit"));
         closeButton.setTypeface(font);
         closeButton.setText(getR("string","close_icon"));
-        closeButton.setOnClickListener(
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        finish();
-                        if (mBackNotify) {
-                            PPWCamera.sendError("close button clicked",1,PPWCamera.openCameraCallbackContext);
-                        }
-                    }
-                }
-        );
 
         //add a listener to the imageview button
         imageViewButton = (ImageButton) findViewById(getR("id","button_imageView"));
@@ -345,32 +421,10 @@ public class PPWCameraActivity extends Activity {
         Button captureButton = (Button) findViewById(getR("id","button_capture"));
         captureButton.setTypeface(font);
         captureButton.setText(getR("string","camera_icon"));
-        captureButton.setOnClickListener(
-            new View.OnClickListener() {
+        captureButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    // get an image from the camera
-                    if (mTakePictureMutex) {
-                        mTakePictureMutex = false;
-                        Toast.makeText(PPWCameraActivity.this, "Saving...",Toast.LENGTH_SHORT).show();
-                        try {
-                            //add updated gps data
-                            if (mLocation != null) {
-                                Camera.Parameters params = getCameraInstance().getParameters();
-                                params.removeGpsData();
-                                params.setGpsLatitude(mLocation.getLatitude());
-                                params.setGpsLongitude(mLocation.getLongitude());
-                                params.setGpsAltitude(mLocation.getAltitude());
-                                params.setGpsTimestamp((long)(mLocation.getTime()*0.001));
-                                params.setGpsProcessingMethod(mLocation.getProvider());
-                                getCameraInstance().setParameters(params);
-                            }
-                            getCameraInstance().takePicture(mShutter, null, mPicture);
-                        } catch (Exception e) {
-                            Log.d(TAG,"exception on picture taking "+e.getMessage());
-                            sendError();
-                        }
-                    }
+                    takePicture();
                 }
             }
         );
@@ -387,6 +441,7 @@ public class PPWCameraActivity extends Activity {
         mConfirmationTimeInterval = 500;
         mConfirmErrorMessage = "Error confirming photo captured";
         mDateFontSize = 20;
+        mShutterSoundOff = false;
 
         //scroll through overlay options
         if (PPWCamera.openCameraJsonArrayArgs != null && PPWCamera.openCameraJsonArrayArgs.length() > 0) {
@@ -406,6 +461,7 @@ public class PPWCameraActivity extends Activity {
             mConfirmErrorMessage = options.optString("confirmErrorMessage","Error confirming photo captured");
             mDateFontSize = options.optInt("dateFontSize",20);
             mDateFormat = options.optString("dateFormat","");
+            mShutterSoundOff = options.optBoolean("shutterSoundOff", false);
 
             //setup camera for new values
             setupCamera();
@@ -616,6 +672,42 @@ public class PPWCameraActivity extends Activity {
         }
     }
 
+    private void takePicture() {
+        // get an image from the camera
+        if (mTakePictureMutex) {
+            mTakePictureMutex = false;
+            Toast.makeText(PPWCameraActivity.this, "Saving...",Toast.LENGTH_SHORT).show();
+            try {
+
+                // providing empty shutter callback to Camera.takePicture() plays the sound,
+                // while passing `null` disables the sound
+                Camera.ShutterCallback camera_shutterCallback = null;
+                if (!mShutterSoundOff) {
+                    camera_shutterCallback = new Camera.ShutterCallback() {
+                        @Override
+                        public void onShutter() {}
+                    };
+                }
+
+                //add updated gps data
+                if (mLocation != null) {
+                    Camera.Parameters params = getCameraInstance().getParameters();
+                    params.removeGpsData();
+                    params.setGpsLatitude(mLocation.getLatitude());
+                    params.setGpsLongitude(mLocation.getLongitude());
+                    params.setGpsAltitude(mLocation.getAltitude());
+                    params.setGpsTimestamp((long)(mLocation.getTime()*0.001));
+                    params.setGpsProcessingMethod(mLocation.getProvider());
+                    getCameraInstance().setParameters(params);
+                }
+                getCameraInstance().takePicture(camera_shutterCallback, null, mPicture);
+            } catch (Exception e) {
+                Log.d(TAG,"exception on picture taking "+e.getMessage());
+                sendError();
+            }
+        }
+    }
+
     public int getR(String group, String key) {
         return getApplicationContext().getResources().getIdentifier(key, group, getApplicationContext().getPackageName());
     }
@@ -640,14 +732,6 @@ public class PPWCameraActivity extends Activity {
         }
         return c;
     }
-
-    private Camera.ShutterCallback mShutter = new Camera.ShutterCallback() {
-
-        @Override
-        public void onShutter() {
-
-        }
-    };
 
     private Camera.PictureCallback mPicture = new Camera.PictureCallback() {
 
@@ -698,7 +782,7 @@ public class PPWCameraActivity extends Activity {
                     fos.write(imageResize);
                     fos.close();
                     String imagePath = getFilesDir() + "/" + FILENAME;
-                    
+
                     String imagePathThumb = "";
                     if (imageThumb != null) {
                         fos = openFileOutput(FILENAME_THUMB, Context.MODE_PRIVATE);
@@ -736,7 +820,7 @@ public class PPWCameraActivity extends Activity {
                         if (mPhotoHeight > mPhotoWidth) {
                             radius = (int)(mPhotoHeight*(mThumbnail*0.01f));
                         }
-                        
+
                         Bitmap thumb = ThumbnailUtils.extractThumbnail(image, radius, radius);
                         thumbButton.setImageBitmap(getCircleBitmap(thumb));
                         thumbButton.setVisibility(View.VISIBLE);
@@ -806,7 +890,14 @@ public class PPWCameraActivity extends Activity {
         Bitmap original = BitmapFactory.decodeByteArray(input, 0, input.length);
         Bitmap resized = ThumbnailUtils.extractThumbnail(original, width, height, ThumbnailUtils.OPTIONS_RECYCLE_INPUT);
         Bitmap dest = resized;
-        
+
+        // add rotation
+        if (mIsOrientationLandscapeRight) {
+            Matrix mat = new Matrix();
+            mat.postRotate(180);
+            resized = Bitmap.createBitmap(resized, 0, 0, width, height, mat, true);
+        }
+
         //add timestamp to photo
         if (shouldTimeStamp) {
             dest = Bitmap.createBitmap(resized.getWidth(), resized.getHeight(), Bitmap.Config.ARGB_8888);
@@ -830,8 +921,8 @@ public class PPWCameraActivity extends Activity {
             final float datePadding = 10;
             canvas.drawText(dateTime, width-dateWidth-datePadding, height-datePadding, strokePaint);
             canvas.drawText(dateTime, width-dateWidth-datePadding, height-datePadding, fillPaint);
-        }         
-        
+        }
+
         //set encoding format
         ByteArrayOutputStream blob = new ByteArrayOutputStream();
         if (mEncodingType.compareToIgnoreCase("png") == 0) {

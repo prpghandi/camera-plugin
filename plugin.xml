@@ -69,14 +69,14 @@
 	<platform name="android">
 
     <config-file target="AndroidManifest.xml" parent="/manifest/application">
-      <activity android:label="PPWCameraActivity" android:name="com.appnovation.ppw_camera.PPWCameraActivity" android:screenOrientation="landscape" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+      <activity android:label="PPWCameraActivity" android:name="com.appnovation.ppw_camera.PPWCameraActivity" android:screenOrientation="sensorLandscape" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
       </activity>
     </config-file>
 
     <config-file target="res/xml/config.xml" parent="/*">
-      <gap:feature name="PPWCamera">
+      <feature name="PPWCamera">
           <param name="android-package" value="com.appnovation.ppw_camera.PPWCamera"/>
-      </gap:feature>
+      </feature>
     </config-file>
 
     <source-file src="src/android/PPWCamera.java" target-dir="src/com/appnovation/ppw_camera" />

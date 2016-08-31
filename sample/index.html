@@ -35,6 +35,9 @@
             <h1>PhoneGap</h1>
             <button id="openPPWCameraBtn">Open PPW Camera</button>
             <p>
+                shutter sound toggle: <button id="shutterSoundBtn">off</button>
+            </p>
+            <p>
                 flashtype: <button id="flashTypeBtn">off</button>
             </p>
             <p>
@@ -71,6 +74,16 @@
                 }
                 document.getElementById("autoCloseBtn").innerHTML = text;
             }, false);
+            document.getElementById("shutterSoundBtn").addEventListener("click", function() {
+                var text = document.getElementById("shutterSoundBtn").innerHTML;
+                if (text == "on") {
+                    text = "off";
+                }
+                else {
+                    text = "on";
+                }
+                document.getElementById("shutterSoundBtn").innerHTML = text;
+            }, false);
             document.getElementById("autoConfirmBtn").addEventListener("click", function() {
                 var text = document.getElementById("autoConfirmBtn").innerHTML;
                 if (text == "on") {
@@ -84,7 +97,7 @@
             document.getElementById("openPPWCameraBtn").addEventListener("click", function(){
                 if (document.getElementById("autoCloseBtn").innerHTML == "on") {
                     setTimeout( function() {
-                        navigator.PPWCamera.closeCamera(null, function() {
+                        PPWCamera.closeCamera(null, function() {
                         },
                         function(error) {
                             alert(error);
@@ -99,6 +112,7 @@
                     targetWidth: 640, //output target size
                     targetHeight: 480,
                     flashType: document.getElementById("flashTypeBtn").innerHTML, //auto, on, off, torch
+                    shutterSoundOff: document.getElementById("shutterSoundBtn").innerHTML === "off",
                     thumbnail: 35, //0 to 100 (default to 25) //percentage of target size
                     backNotify: true, //true or false (default to false)
                     confirmErrorMessage: 'Error with photo taken.  Camera plugin will close.',
@@ -132,7 +146,7 @@
                         }
                     ]
                 };
-                navigator.PPWCamera.getPicture(options,function(output){
+                PPWCamera.getPicture(options,function(output){
                     var image = document.createElement("img");
                     image.setAttribute("src", output.imageURI);
                     document.getElementById("photoImg").appendChild(image);
@@ -143,7 +157,7 @@
                     }
                     document.getElementById("flashTypeBtn").innerHTML = output.flashType;
                     if (document.getElementById("autoConfirmBtn").innerHTML == "on") {
-                        navigator.PPWCamera.confirmPicture(null, function() {
+                        PPWCamera.confirmPicture(null, function() {
                             test: 'does not need a parameter but using one for placeholder'
                         },
                         function(error) {

@@ -78,6 +78,14 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
         }
     }
 
+    public void changeOrientation(int orientation) {
+        try {
+            mCamera.stopPreview();
+            mCamera.setDisplayOrientation(orientation);
+            mCamera.startPreview();
+        } catch (Exception e) {/**/}
+    }
+
     public void surfaceDestroyed(SurfaceHolder holder) {
         clearCamera();
     }
@@ -124,16 +132,20 @@ public class PPWCameraPreview extends SurfaceView implements SurfaceHolder.Callb
                 mCamera.cancelAutoFocus();
                 Rect focusRect = focusArea(event.getX(), event.getY());
                 List<Camera.Area> focusList = new ArrayList<Camera.Area>();
-                Camera.Area focusArea = new Camera.Area(focusRect, 1000);
-                focusList.add(focusArea);
-                Camera.Parameters p = mCamera.getParameters();
-                if (p.getMaxNumFocusAreas()>0) {
-                    p.setFocusAreas(focusList);
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+                    Camera.Area focusArea = new Camera.Area(focusRect, 1000);
+                    focusList.add(focusArea);
+                    Camera.Parameters p = mCamera.getParameters();
+                    if (p.getMaxNumFocusAreas() > 0) {
+                        p.setFocusAreas(focusList);
+                    }
+                    if (p.getMaxNumMeteringAreas() > 0) {
+                        p.setMeteringAreas(focusList);
+                    }
+
+                    mCamera.setParameters(p);
                 }
-                if (p.getMaxNumMeteringAreas()>0) {
-                    p.setMeteringAreas(focusList);
-                }
-                mCamera.setParameters(p);
+                
                 mCamera.autoFocus(new Camera.AutoFocusCallback() {
                     @Override
                     public void onAutoFocus(boolean success, Camera camera) {

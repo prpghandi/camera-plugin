@@ -91,6 +91,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 @property (strong, nonatomic) IBOutlet UIImageView *imageView;
 @property (strong, nonatomic) IBOutlet UIButton *imageViewBtn;
 @property (strong, nonatomic) CLLocationManager* locationManager;
+@property (strong, nonatomic) MBProgressHUD *hud;
 @end
 
 @implementation PPWCameraViewController
@@ -139,10 +140,38 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 -(void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
     _flashBtn.hidden = ![UIImagePickerController isFlashAvailableForCameraDevice:UIImagePickerControllerCameraDeviceRear];
+    
+    // add volume button detectors
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(volumeUpButtonUpNotif:)
+                                                 name:@"_UIApplicationVolumeUpButtonUpNotification"
+                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(volumeDownButtonDownNotif:)
+                                                 name:@"_UIApplicationVolumeDownButtonUpNotification"
+                                               object:nil];
+    
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(orientationChanged:)
+                                                 name:UIDeviceOrientationDidChangeNotification
+                                               object:nil];
 }
 
 -(void)viewDidDisappear:(BOOL)animated {
     [super viewDidDisappear:animated];
+    
+    [[NSNotificationCenter defaultCenter] removeObserver:self
+                                                    name:@"_UIApplicationVolumeUpButtonUpNotification"
+                                                  object:nil];
+    
+    [[NSNotificationCenter defaultCenter] removeObserver:self
+                                                    name:@"_UIApplicationVolumeDownButtonUpNotification"
+                                                  object:nil];
+    
+    [[NSNotificationCenter defaultCenter] removeObserver:self
+                                                    name:UIDeviceOrientationDidChangeNotification
+                                                  object:nil];
 }
 
 -(void)viewDidLoad {
@@ -160,7 +189,9 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     //initialize parameters
     mPhotoScale = 1;
     mPhotoScaleLast = 1;
-    self.view.transform = CGAffineTransformIdentity;
+    
+    // rotate camera view 90 deg
+    self.view.transform = CGAffineTransformMakeRotation(M_PI_2);
     
     //calculate screen bounds
     CGRect screenBounds = [UIScreen mainScreen].bounds;
@@ -229,6 +260,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
         [self.locationManager stopUpdatingLocation];
     }
 }
+
 
 - (void)setOptions:(NSDictionary*)options {
     mPhotoWidth = 640;
@@ -461,10 +493,36 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     return NO;
 }
 - (NSUInteger)supportedInterfaceOrientations {
-    return UIInterfaceOrientationMaskLandscapeRight;
+    return UIInterfaceOrientationLandscapeRight;
 }
 -(UIInterfaceOrientation)preferredInterfaceOrientationForPresentation {
     return UIInterfaceOrientationLandscapeRight;
+}
+
+
+#pragma volume button callbacks
+
+- (void) volumeUpButtonUpNotif: string {
+    [self takeCameraPicture];
+}
+- (void) volumeDownButtonDownNotif: string {
+    [self takeCameraPicture];
+}
+
+#pragma orientation callback
+- (void)orientationChanged:(NSNotification *)notification{
+    UIInterfaceOrientation orientation = [[UIApplication sharedApplication] statusBarOrientation];
+    switch (orientation) {
+        case UIInterfaceOrientationLandscapeLeft:
+            self.view.transform = CGAffineTransformMakeRotation(-M_PI_2);
+            break;
+        case UIInterfaceOrientationLandscapeRight:
+            self.view.transform = CGAffineTransformMakeRotation(M_PI_2);
+            break;
+            
+        default:
+            break;
+    }
 }
 
 #pragma mark UIButton delegates
@@ -481,15 +539,10 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 }
 
 - (IBAction)takePhotoBtnPressed:(id)sender forEvent:(UIEvent *)event {
-    if (![self.plugin cameraAccessCheck])
-        return;
-    
-    MBProgressHUD *hud = [MBProgressHUD showHUDAddedTo:self.view animated:YES];
-    hud.mode = MBProgressHUDModeText;
-    hud.labelText = @"Saving...";
-    [self.picker takePicture];
+    [self takeCameraPicture];
 }
-- (IBAction)closeBtnPressed:(id)sender {
+
+- (IBAction)closeButtonAction:(id)sender {
     [self.plugin closeCamera];
     if (mBackNotify) {
         [self.plugin sendError:@"close button clicked" code:1];
@@ -506,6 +559,22 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 - (IBAction)imageViewBtnPressed:(id)sender {
     [_imageView setHidden:YES];
     [_imageViewBtn setHidden:YES];
+}
+
+#pragma mark - UIImagePicker helper method
+-(void) takeCameraPicture {
+    if (![self.plugin cameraAccessCheck])
+        return;
+    
+        if (self.hud) {
+        [self.hud hide:YES];
+        self.hud = nil;
+    }
+    
+    self.hud = [MBProgressHUD showHUDAddedTo:self.view animated:YES];
+    self.hud.mode = MBProgressHUDModeText;
+    self.hud.labelText = @"Saving...";
+    [self.picker takePicture];
 }
 
 #pragma mark - UIImagePickerControllerDelegate
