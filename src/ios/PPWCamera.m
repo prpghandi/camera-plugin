@@ -9,6 +9,8 @@
 #import "PPWCamera.h"
 #import <AVFoundation/AVFoundation.h>
 
+#define SYSTEM_VERSION_LESS_THAN(v)                 ([[[UIDevice currentDevice] systemVersion] compare:v options:NSNumericSearch] == NSOrderedAscending)
+
 static int instanceCount = 0;
 
 @interface PPWCamera () <UIAlertViewDelegate>
@@ -70,11 +72,17 @@ static int instanceCount = 0;
             self.overlay.plugin = self;
             self.overlay.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
             
-            // add new ui window for PPWCameraViewController
-            CGSize screenSize = [UIScreen mainScreen].bounds.size;
-            self.window = [[UIWindow alloc] initWithFrame: CGRectMake(0, 0, screenSize.width, screenSize.height)];
-            self.window.rootViewController = self.overlay;
-            [self.window makeKeyAndVisible];
+            if (SYSTEM_VERSION_LESS_THAN(@"10")) {
+                // add new ui window for PPWCameraViewController
+                CGSize screenSize = [UIScreen mainScreen].bounds.size;
+                self.window = [[UIWindow alloc] initWithFrame: CGRectMake(0, 0, screenSize.width, screenSize.height)];
+                self.window.rootViewController = self.overlay;
+                [self.window makeKeyAndVisible];
+            } else {
+                [self.viewController presentViewController:self.overlay animated:NO completion:nil];
+            }
+            
+
         }
         else {
             [self sendError:@"Error presenting camera view" code:0];

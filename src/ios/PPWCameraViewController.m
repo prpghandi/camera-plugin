@@ -109,29 +109,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
         self.picker.showsCameraControls = NO;
         self.picker.allowsEditing = NO;
         self.picker.delegate = self;
-        if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad) {
-            self.picker.cameraViewTransform = CGAffineTransformIdentity;
-            switch ([[UIDevice currentDevice] orientation])
-            {
-                case UIDeviceOrientationLandscapeLeft:
-                    break;
-                case UIDeviceOrientationLandscapeRight:
-                    self.picker.view.transform = CGAffineTransformMakeRotation(M_PI);
-                    break;
-
-                case UIDeviceOrientationPortraitUpsideDown:
-                    self.picker.view.transform = CGAffineTransformMakeRotation(M_PI/2);
-                    break;
-
-                case UIDeviceOrientationPortrait:
-                default:
-                    self.picker.view.transform = CGAffineTransformMakeRotation(-M_PI/2);
-                    break;
-            }
-        }
-        else {
-            self.picker.view.transform = CGAffineTransformMakeRotation(-M_PI/2);
-        }
+        self.picker.view.transform = CGAffineTransformMakeRotation(-M_PI_2);
         mPreviewTranform = self.picker.view.transform;
     }
     return self;
@@ -141,17 +119,6 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     [super viewWillAppear:animated];
     _flashBtn.hidden = ![UIImagePickerController isFlashAvailableForCameraDevice:UIImagePickerControllerCameraDeviceRear];
     
-    // add volume button detectors
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(volumeUpButtonUpNotif:)
-                                                 name:@"_UIApplicationVolumeUpButtonUpNotification"
-                                               object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(volumeDownButtonDownNotif:)
-                                                 name:@"_UIApplicationVolumeDownButtonUpNotification"
-                                               object:nil];
-    
-    
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(orientationChanged:)
                                                  name:UIDeviceOrientationDidChangeNotification
@@ -160,14 +127,6 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 
 -(void)viewDidDisappear:(BOOL)animated {
     [super viewDidDisappear:animated];
-    
-    [[NSNotificationCenter defaultCenter] removeObserver:self
-                                                    name:@"_UIApplicationVolumeUpButtonUpNotification"
-                                                  object:nil];
-    
-    [[NSNotificationCenter defaultCenter] removeObserver:self
-                                                    name:@"_UIApplicationVolumeDownButtonUpNotification"
-                                                  object:nil];
     
     [[NSNotificationCenter defaultCenter] removeObserver:self
                                                     name:UIDeviceOrientationDidChangeNotification
@@ -189,9 +148,6 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     //initialize parameters
     mPhotoScale = 1;
     mPhotoScaleLast = 1;
-    
-    // rotate camera view 90 deg
-    self.view.transform = CGAffineTransformMakeRotation(M_PI_2);
     
     //calculate screen bounds
     CGRect screenBounds = [UIScreen mainScreen].bounds;
@@ -231,6 +187,17 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     
     self.preview.center = CGPointMake(screenWidth / 2, screenHeight / 2);
     self.picker.view.center = CGPointMake(self.preview.bounds.size.width / 2, self.preview.bounds.size.height / 2);
+
+    switch ([[UIDevice currentDevice] orientation]) {
+        case UIDeviceOrientationLandscapeRight:
+            self.view.transform = CGAffineTransformMakeRotation(-M_PI_2);
+            self.preview.transform = CGAffineTransformMakeRotation(M_PI);
+            break;
+            
+        default:
+            self.view.transform = CGAffineTransformMakeRotation(M_PI_2);
+            break;
+    }
     
     //set flash type
     _flashBtn.hidden = ![UIImagePickerController isFlashAvailableForCameraDevice:UIImagePickerControllerCameraDeviceRear];
@@ -492,11 +459,11 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 -(BOOL)shouldAutorotate {
     return NO;
 }
-- (NSUInteger)supportedInterfaceOrientations {
-    return UIInterfaceOrientationLandscapeRight;
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations {
+    return UIInterfaceOrientationMaskPortrait;
 }
 -(UIInterfaceOrientation)preferredInterfaceOrientationForPresentation {
-    return UIInterfaceOrientationLandscapeRight;
+    return UIInterfaceOrientationPortrait;
 }
 
 
@@ -511,18 +478,20 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 
 #pragma orientation callback
 - (void)orientationChanged:(NSNotification *)notification{
-    UIInterfaceOrientation orientation = [[UIApplication sharedApplication] statusBarOrientation];
-    switch (orientation) {
-        case UIInterfaceOrientationLandscapeLeft:
-            self.view.transform = CGAffineTransformMakeRotation(-M_PI_2);
-            break;
-        case UIInterfaceOrientationLandscapeRight:
+    switch ([[UIDevice currentDevice] orientation]) {
+        case UIDeviceOrientationLandscapeLeft:
             self.view.transform = CGAffineTransformMakeRotation(M_PI_2);
+            self.preview.transform = CGAffineTransformMakeRotation(0);
+            break;
+        case UIDeviceOrientationLandscapeRight:
+            self.view.transform = CGAffineTransformMakeRotation(-M_PI_2);
+            self.preview.transform = CGAffineTransformMakeRotation(-M_PI);
             break;
             
         default:
             break;
     }
+
 }
 
 #pragma mark UIButton delegates
@@ -646,7 +615,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     }
     else {
         //add exif meta data
-        imageData = [self taggedImageData:imageData metadata:metadataDictionary orientation:image.imageOrientation];
+        imageData = [self taggedImageData:imageData metadata:metadataDictionary orientation:UIImageOrientationUp];
         
         // Write the data to the file
         [imageData writeToFile:imagePath atomically:YES];
@@ -746,11 +715,11 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     UIGraphicsEndImageContext();
     
     //maintain orientation if upside down
-    if (image.imageOrientation==UIImageOrientationDown) {
-        return [UIImage imageWithCGImage:scaleImage.CGImage
-                                   scale:1
-                             orientation:image.imageOrientation];
-    }
+//    if (image.imageOrientation==UIImageOrientationDown) {
+//        return [UIImage imageWithCGImage:scaleImage.CGImage
+//                                   scale:1
+//                             orientation:image.imageOrientation];
+//    }
     return scaleImage;
 }
 
