@@ -1,9 +1,11 @@
 package com.appnovation.ppw_camera;
 
+import org.apache.cordova.LOG;
 import org.apache.cordova.PluginResult;
 
 import org.apache.sanselan.Sanselan;
 import org.apache.sanselan.formats.jpeg.exifRewrite.ExifRewriter;
+import org.apache.sanselan.formats.tiff.write.TiffOutputDirectory;
 import org.apache.sanselan.formats.tiff.write.TiffOutputSet;
 import org.apache.sanselan.formats.tiff.TiffImageMetadata;
 import org.apache.sanselan.formats.jpeg.JpegImageMetadata;
@@ -43,6 +45,7 @@ import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.view.animation.LayoutAnimationController;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -874,6 +877,7 @@ public class PPWCameraActivity extends Activity {
 
     public void setupCamera() {
         Camera.Parameters parameters = getCameraInstance().getParameters();
+        setHiddenParameter(parameters, "zsl-values", "zsl", "on");
         Size bestPreviewSize = determineBestPreviewSize(parameters);
         Size bestPictureSize = determineBestPictureSize(parameters);
         parameters.setPreviewSize(bestPreviewSize.width, bestPreviewSize.height);
@@ -967,16 +971,37 @@ public class PPWCameraActivity extends Activity {
         return bytesToHex(bytes);
     }
 
-    private final static char[] hexArray = "0123456789abcdef".toCharArray();
-    private static String bytesToHex(byte[] bytes) {
-        char[] hexChars = new char[bytes.length * 2];
-        int v;
-        for (int j = 0; j < bytes.length; j++) {
-            v = bytes[j] & 0xFF;
-            hexChars[j * 2] = hexArray[v >>> 4];
-            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+    private static String bytesToHex(byte[] a) {
+        String hexString = "";
+        for(int i = 0; i < a.length; i++){
+            String thisByte = "".format("%02x", a[i]);
+            hexString += thisByte;
         }
-        return new String(hexChars);
+        return hexString;
+    }
+
+    private static showHashPopup() {
+      final EditText input = new EditText(MainActivity.this);
+      new AlertDialog.Builder(PPWCameraActivity.this)
+              .setTitle("HMAC 512 Test")
+              .setMessage("Please enter a string to be hashed")
+              .setView(input)
+              .setIcon(android.R.drawable.ic_dialog_alert)
+              .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                  public void onClick(DialogInterface dialog, int id) {
+                          String text = input.getEditableText().toString();
+                          try {
+                              new AlertDialog.Builder(PPWCameraActivity.this)
+                                      .setTitle("HMAC 512 Test")
+                                      .setMessage(PPWCameraActivity.hmacSha512(text, SECRET_KEY))
+                                      .setIcon(android.R.drawable.ic_dialog_alert)
+                                      .show();
+                          } catch (Exception e) {
+
+                          }
+                  }
+              })
+              .show();
     }
 
     /*
@@ -990,8 +1015,21 @@ public class PPWCameraActivity extends Activity {
                 TiffImageMetadata exif = metadata.getExif();
                 if (null != exif) {
                     outputSet = exif.getOutputSet();
+
+                    List<?> dirs = outputSet.getDirectories();
+                    for (int i = 0; i < dirs.size(); i++) {
+                        try {
+                            TiffOutputDirectory dir = (TiffOutputDirectory) dirs.get(i);
+                            dir.setJpegImageData(null);
+                            dir.setTiffImageData(null);
+                        } catch (Exception e) {
+                            Log.d(TAG,"Exception on removing thumbnail image: "+e.getMessage());
+                            sendError();
+                        }
+                    }
                 }
             }
+
             if (null != outputSet) {
                 ByteArrayOutputStream bos = new ByteArrayOutputStream();
                 ExifRewriter ER = new ExifRewriter();
@@ -1003,5 +1041,24 @@ public class PPWCameraActivity extends Activity {
             sendError();
         }
         return destImageData;
+    }
+
+    private static void setHiddenParameter(Camera.Parameters params, String values_key, String key, String value) {
+        if (params.get(key) == null) {
+            return;
+        }
+
+        String possible_values_str = params.get(values_key);
+        if (possible_values_str == null) {
+            return;
+        }
+
+        String[] possible_values = possible_values_str.split(",");
+        for (String possible : possible_values) {
+            if (possible.equals(value)) {
+                params.set(key, value);
+                return;
+            }
+        }
     }
 }

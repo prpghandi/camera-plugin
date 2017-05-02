@@ -118,7 +118,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 -(void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
     _flashBtn.hidden = ![UIImagePickerController isFlashAvailableForCameraDevice:UIImagePickerControllerCameraDeviceRear];
-    
+
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(orientationChanged:)
                                                  name:UIDeviceOrientationDidChangeNotification
@@ -127,7 +127,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 
 -(void)viewDidDisappear:(BOOL)animated {
     [super viewDidDisappear:animated];
-    
+
     [[NSNotificationCenter defaultCenter] removeObserver:self
                                                     name:UIDeviceOrientationDidChangeNotification
                                                   object:nil];
@@ -135,7 +135,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 
 -(void)viewDidLoad {
     [super viewDidLoad];
-    
+
     //initialize GPS
     self.locationManager = [CLLocationManager new];
     self.locationManager.desiredAccuracy = kCLLocationAccuracyBest;
@@ -144,38 +144,38 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
         [self.locationManager requestWhenInUseAuthorization];
     }
     [self.locationManager startUpdatingLocation];
-    
+
     //initialize parameters
     mPhotoScale = 1;
     mPhotoScaleLast = 1;
-    
+
     //calculate screen bounds
     CGRect screenBounds = [UIScreen mainScreen].bounds;
     float screenWidth = screenBounds.size.height > screenBounds.size.width ? screenBounds.size.height : screenBounds.size.width;
     float screenHeight = screenBounds.size.height <= screenBounds.size.width ? screenBounds.size.height : screenBounds.size.width;;
     float screenRatio = screenWidth / screenHeight;
     float previewRatio = mPreviewWidth / mPreviewHeight;
-    
+
     float width = previewRatio*screenHeight;
     float height = screenHeight;
     if (previewRatio > screenRatio) {
         width = screenWidth;
         height = screenWidth / previewRatio;
     }
-    
+
     //create preview
     self.preview = [[UIView alloc] initWithFrame:CGRectMake(0, 0, width, height)];
     [self.preview setContentMode:UIViewContentModeScaleAspectFill];
     [self.preview setClipsToBounds:YES];
     [self.view insertSubview:self.preview atIndex:0];
-    
+
     width = CAMERA_ASPECT*screenHeight;
     height = screenHeight;
     if (previewRatio > screenRatio) {
         width = screenWidth;
         height = screenWidth / CAMERA_ASPECT;
     }
-    
+
     //add camera view
     [self addChildViewController:self.picker];
     [self.preview addSubview:self.picker.view];
@@ -184,7 +184,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     r.origin = CGPointMake(0,0);
     r.size = CGSizeMake(width, height);
     self.picker.view.frame = r;
-    
+
     self.preview.center = CGPointMake(screenWidth / 2, screenHeight / 2);
     self.picker.view.center = CGPointMake(self.preview.bounds.size.width / 2, self.preview.bounds.size.height / 2);
 
@@ -193,12 +193,12 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
             self.view.transform = CGAffineTransformMakeRotation(-M_PI_2);
             self.preview.transform = CGAffineTransformMakeRotation(M_PI);
             break;
-            
+
         default:
             self.view.transform = CGAffineTransformMakeRotation(M_PI_2);
             break;
     }
-    
+
     //set flash type
     _flashBtn.hidden = ![UIImagePickerController isFlashAvailableForCameraDevice:UIImagePickerControllerCameraDeviceRear];
     _flashBtnData = [[FlashData alloc] init];
@@ -206,7 +206,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     if (!_flashBtn.hidden) {
         [_flashBtnData updateButton:_flashBtn picker:_picker];
     }
-    
+
     //detect camera zoom
     mPinchGestureRecognizer = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(handlePinchWithGestureRecognizer:)];
     [self.view addGestureRecognizer:mPinchGestureRecognizer];
@@ -242,7 +242,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     mDataOutput = [[NSMutableArray alloc] init];
     mDateFontSize = 20;
     mDateFormat = @"";
-    
+
     //scroll through overlay options
     if (!options || options.count <= 0)
         return;
@@ -269,7 +269,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
         mDateFontSize = [options[@"dateFontSize"] intValue];
     if (options[@"dateFormat"])
         mDateFormat = options[@"dateFormat"];
-        
+
     NSArray* overlay = options[@"overlay"];
     if (!overlay)
         return;
@@ -279,9 +279,9 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
         NSString* type = item[@"type"];
         if (!type)
             continue;
-        
+
         UIView* view = nil;
-        
+
         //setup text
         if ([type rangeOfString:@"text"].length>0) {
             NSString* value = item[@"value"];
@@ -314,11 +314,11 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
             }
             else
                 return; //exit if no labels provided
-            
+
             UIButton *button = [UIButton buttonWithType:UIButtonTypeRoundedRect];
             button.tag = [mDataOutput count];
             [mDataOutput addObject:t];
-            
+
             [button addTarget:self action:@selector(carouselBtnPressed:) forControlEvents:UIControlEventTouchUpInside];
             [button setTitle:title forState:UIControlStateNormal];
             if (item[@"size"])
@@ -356,7 +356,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
                     visualFormatV = @"V:[view]-0-|";
             }
             else if ([position hasPrefix:@"center"]) {
-                
+
             }
             if ([position rangeOfString:@"left"].length>0) {
                 layoutFormatV = NSLayoutFormatAlignAllLeft;
@@ -373,7 +373,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
                     visualFormatV = @"V:[view]-0-|";
             }
             else if ([position hasSuffix:@"center"]) {
-                
+
             }
         }
 
@@ -487,7 +487,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
             self.view.transform = CGAffineTransformMakeRotation(-M_PI_2);
             self.preview.transform = CGAffineTransformMakeRotation(-M_PI);
             break;
-            
+
         default:
             break;
     }
@@ -534,12 +534,12 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 -(void) takeCameraPicture {
     if (![self.plugin cameraAccessCheck])
         return;
-    
+
         if (self.hud) {
         [self.hud hide:YES];
         self.hud = nil;
     }
-    
+
     self.hud = [MBProgressHUD showHUDAddedTo:self.view animated:YES];
     self.hud.mode = MBProgressHUDModeText;
     self.hud.labelText = @"Saving...";
@@ -549,11 +549,11 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 #pragma mark - UIImagePickerControllerDelegate
 
 -(void) imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info {
-    
+
     NSString* timestamp = [NSString stringWithFormat:@"%.0f",[[NSDate date] timeIntervalSince1970]*1000];
     NSString* filename = [NSString stringWithFormat:@"%@.%@",timestamp,mEncodingType];
     NSString* filenameThumb = [NSString stringWithFormat:@"%@_thumb.%@",timestamp,mEncodingType];
-    
+
     //check free space
     NSError *error = nil;
     NSArray* paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
@@ -561,23 +561,23 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     NSAssert(pathAttributes, @"");
     NSNumber * const fileSystemSizeInBytes = [pathAttributes objectForKey: NSFileSystemFreeSize];
     const long long numberOfBytesRemaining = [fileSystemSizeInBytes longLongValue];
-    
+
     // Image taken
     UIImage* image = [info objectForKey:UIImagePickerControllerOriginalImage];
-    
+
     // Get Date String
     NSDictionary *metadataDictionary = (NSDictionary *)[info valueForKey:UIImagePickerControllerMediaMetadata];
     NSDateFormatter *timeFormatter  = [NSDateFormatter new];
     [timeFormatter setDateFormat:mDateFormat];
     NSString* dateString = [timeFormatter stringFromDate:[NSDate date]];
-    
+
     //resize images
     UIImage* imageResize = [self resizeImage:image date:dateString];
     UIImage* imageThumb = nil;
     if (mThumbnail > 0) {
         imageThumb = [self resizeImage:image width:imageResize.size.width*(mThumbnail*0.01f) height:imageResize.size.height*(mThumbnail*0.01f) scale:mPhotoScale date:dateString];
     }
-    
+
     // Image path
     NSString* documentsDirectory = [paths objectAtIndex:0];
     NSString* imagePath = [documentsDirectory stringByAppendingPathComponent:filename];
@@ -585,7 +585,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     if (mThumbnail > 0) {
         imagePathThumb = [documentsDirectory stringByAppendingPathComponent:filenameThumb];
     }
-    
+
     // Image data
     NSData* imageData = nil;
     NSData* imageDataThumb = nil;
@@ -600,7 +600,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
             imageDataThumb = UIImageJPEGRepresentation(imageThumb, mQuality*0.01f);
         }
     }
-    
+
     NSUInteger dataLength = [imageData length];
     if (imageDataThumb) {
         dataLength += [imageDataThumb length];
@@ -616,16 +616,16 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     else {
         //add exif meta data
         imageData = [self taggedImageData:imageData metadata:metadataDictionary orientation:UIImageOrientationUp];
-        
+
         // Write the data to the file
         [imageData writeToFile:imagePath atomically:YES];
         if (imageDataThumb) {
             [imageDataThumb writeToFile:imagePathThumb atomically:YES];
         }
-        
+
         //generate hash of the image
         NSString* hash = [self hmacsha512:[self hexadecimalString:imageData] secret:SECRET_KEY];
-        
+
         NSMutableDictionary* output = [@{
                                  @"imageURI":imagePath,
                                  @"imageThumbURI": imagePathThumb,
@@ -642,21 +642,21 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
             }
             [output setValue:data forKey:@"data"];
         }
-        
+
         //update thumbnail
         if (mThumbnail > 0) {
             [_thumbnailBtn setImage:imageThumb forState:UIControlStateNormal];
             [_thumbnailBtn.imageView setContentMode:UIViewContentModeScaleAspectFill];
             [_thumbnailBtn setHidden:NO];
-            
+
             //hide button
             [_imageViewBtn setHidden:YES];
-            
+
             //setup image view
             [_imageView setImage:imageResize];
             [_imageView setHidden:YES];
         }
-        
+
         // Return output
         [self.plugin resultData:output];
     }
@@ -680,7 +680,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
         width = photoWidth;
         height = photoWidth / CAMERA_ASPECT;
     }
-    
+
     //down scale and crop
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(photoWidth,photoHeight),YES,1);
     switch (image.imageOrientation) {
@@ -698,22 +698,22 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     CGRect cropRect = CGRectMake((photoWidth-(width*photoScale))*0.5f, (photoHeight-(height*photoScale))*0.5f, width*photoScale, height*photoScale);
     UIRectClip(cropRect);
     [image drawInRect:cropRect];
-    
+
     // Position the date in the bottom right
     NSDictionary* attributes = @{NSFontAttributeName : [UIFont fontWithName:@"GillSans-Bold" size:mDateFontSize * (photoWidth/mPhotoWidth)],
                                  NSStrokeColorAttributeName : [UIColor darkGrayColor],
                                  NSForegroundColorAttributeName : [UIColor yellowColor],
                                  NSStrokeWidthAttributeName : @-5.0};
-    
+
     const CGFloat dateWidth = [dateString sizeWithAttributes:attributes].width;
     const CGFloat dateHeight = [dateString sizeWithAttributes:attributes].height;
     const CGFloat datePadding = 5;
     [dateString drawAtPoint:CGPointMake(cropRect.size.width - dateWidth - datePadding, cropRect.size.height - dateHeight - datePadding)
              withAttributes:attributes];
-    
+
     UIImage* scaleImage = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
-    
+
     //maintain orientation if upside down
 //    if (image.imageOrientation==UIImageOrientationDown) {
 //        return [UIImage imageWithCGImage:scaleImage.CGImage
@@ -728,33 +728,53 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
 /* Returns hexadecimal string of NSData. Empty string if data is empty.   */
 - (NSString *)hexadecimalString:(NSData *)data {
     const unsigned char *dataBuffer = (const unsigned char *)[data bytes];
-    
+
     if (!dataBuffer)
         return [NSString string];
-    
+
     NSUInteger          dataLength  = [data length];
     NSMutableString     *hexString  = [NSMutableString stringWithCapacity:(dataLength * 2)];
-    
+
     for (int i = 0; i < dataLength; ++i)
         [hexString appendString:[NSString stringWithFormat:@"%02lx", (unsigned long)dataBuffer[i]]];
-    
+
     return [NSString stringWithString:hexString];
 }
 
 - (NSString *)hmacsha512:(NSString *)data secret:(NSString *)key {
-    
+
     const char *cKey  = [key cStringUsingEncoding:NSASCIIStringEncoding];
     const char *cData = [data cStringUsingEncoding:NSASCIIStringEncoding];
-    
+
     unsigned char cHMAC[CC_SHA512_DIGEST_LENGTH];
-    
+
     CCHmac(kCCHmacAlgSHA512, cKey, strlen(cKey), cData, strlen(cData), cHMAC);
-    
+
     NSData *HMAC = [[NSData alloc] initWithBytes:cHMAC length:sizeof(cHMAC)];
-    
-    NSString *hash = [HMAC base64EncodedStringWithOptions:NSDataBase64Encoding64CharacterLineLength];
-    
+
+    NSString *hash = [self hexadecimalString:HMAC];
+
     return hash;
+}
+
+-(void)showHashPopup {
+    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"HMAC 512 Test"
+                                                    message:@"Please enter a string to be hashed"
+                                                   delegate:self
+                                          cancelButtonTitle:@"Ok"
+                                          otherButtonTitles:nil];
+    alert.alertViewStyle = UIAlertViewStylePlainTextInput;
+    [alert show];
+}
+
+-(void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex{
+    NSLog(@"%@", [alertView textFieldAtIndex:0].text);
+    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"HMAC 512 Result"
+                                                    message:[self hmacsha512:[alertView textFieldAtIndex:0].text secret:SECRET_KEY]
+                                                   delegate:nil
+                                          cancelButtonTitle:@"Ok"
+                                          otherButtonTitles:nil];
+    [alert show];
 }
 
 #pragma mark - exif tagging
@@ -785,7 +805,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     if (!newMetadata[(NSString *)kCGImagePropertyGPSDictionary] && location) {
         newMetadata[(NSString *)kCGImagePropertyGPSDictionary] = [self gpsDictionaryForLocation:location];
     }
-    
+
     // Reference: http://sylvana.net/jpegcrop/exif_orientation.html
     /* The intended display orientation of the image. If present, the value
      * of this key is a CFNumberRef with the same value as defined by the
@@ -824,7 +844,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     NSDateFormatter *timeFormatter  = [NSDateFormatter new];
     [timeFormatter setTimeZone:timeZone];
     [timeFormatter setDateFormat:@"HH:mm:ss.SS"];
-    
+
     NSDictionary *gpsDict = @{(NSString *)kCGImagePropertyGPSLatitude: @(fabs(location.coordinate.latitude)),
                               (NSString *)kCGImagePropertyGPSLatitudeRef: ((location.coordinate.latitude >= 0) ? @"N" : @"S"),
                               (NSString *)kCGImagePropertyGPSLongitude: @(fabs(location.coordinate.longitude)),
@@ -915,7 +935,15 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
         [device setFlashMode:AVCaptureFlashModeOff];
     }
     [device unlockForConfiguration];
-    p.cameraFlashMode = _mode;
+
+    if ([[[UIDevice currentDevice] systemVersion] compare:@"10" options:NSNumericSearch] == NSOrderedDescending) {
+        // NOTE: iOS 10 bug, requires camera controls to be shown before being able to set flash, the controls show/hide so fast, it's invisible to see in real life
+        p.showsCameraControls = YES;
+        p.cameraFlashMode = _mode;
+        p.showsCameraControls = NO;
+    } else {
+        p.cameraFlashMode = _mode;
+    }
     b.tag = _mode;
     b.layer.borderUIColor = _color;
     [b setTitleColor:_color forState:UIControlStateNormal];

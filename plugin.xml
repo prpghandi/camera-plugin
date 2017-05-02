@@ -3,7 +3,7 @@
 		xmlns:android="http://schemas.android.com/apk/res/android"
 		xmlns:rim="http://www.blackberry.com/ns/widgets"
 		id="com.appnovation.ppw-camera"
-		version="1.0.15">
+		version="1.0.16">
 
 	<name>PPW Camera</name>
 	<description>PhoneGap plugin to support a custom camera overlay</description>
@@ -45,11 +45,11 @@
 			<array>
 				<string>flaticon_ppw_camera.ttf</string>
 			</array>
-    </config-file> 
+    </config-file>
 
     <config-file target="*-Info.plist" parent="NSLocationWhenInUseUsageDescription">
     	<string>Required to Save Photo GPS Data</string>
-    </config-file> 
+    </config-file>
 
     <config-file target="*-Info.plist" parent="UIFileSharingEnabled">
     	<true/>
@@ -100,6 +100,6 @@
 
     <resource-file src="src/shared/flaticon_ppw_camera.ttf" target="assets/flaticon_ppw_camera.ttf" />
 
-  </platform> 
+  </platform>
 
 </plugin>
