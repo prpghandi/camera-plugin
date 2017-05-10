@@ -18,6 +18,8 @@
 #import <ImageIO/ImageIO.h>
 #import <CoreLocation/CoreLocation.h>
 
+#define SYSTEM_VERSION_LESS_THAN(v)                 ([[[UIDevice currentDevice] systemVersion] compare:v options:NSNumericSearch] == NSOrderedAscending)
+
 #define MAX_ZOOM 3
 #define SECRET_KEY @"password"
 #define CAMERA_ASPECT 1.3333333f //default camera aspect ratio 4:3
@@ -203,8 +205,11 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     _flashBtn.hidden = ![UIImagePickerController isFlashAvailableForCameraDevice:UIImagePickerControllerCameraDeviceRear];
     _flashBtnData = [[FlashData alloc] init];
     [_flashBtnData setTypeByName:mFlashType];
-    if (!_flashBtn.hidden) {
-        [_flashBtnData updateButton:_flashBtn picker:_picker];
+    if (_flashBtn && !_flashBtn.hidden) {
+        dispatch_time_t waitTime = dispatch_time(DISPATCH_TIME_NOW, 0.01 * NSEC_PER_SEC);
+        dispatch_after(waitTime, dispatch_get_main_queue(), ^(void){
+            [_flashBtnData updateButton:_flashBtn picker:_picker];
+        });
     }
 
     //detect camera zoom
@@ -541,8 +546,12 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     }
 
     self.hud = [MBProgressHUD showHUDAddedTo:self.view animated:YES];
-    self.hud.mode = MBProgressHUDModeText;
-    self.hud.labelText = @"Saving...";
+    [self.hud setMode:MBProgressHUDModeText];
+    [self.hud setLabelText:@"Saving"];
+    [self.hud setDetailsLabelText:@"Please wait..."];
+    [self.hud setDimBackground:YES];
+    [self.hud setOpacity:0.5f];
+    [self.hud hide:YES afterDelay:10.0f];
     [self.picker takePicture];
 }
 
@@ -924,7 +933,25 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     _type = type;
 }
 -(void)updateButton:(UIButton *)b picker:(UIImagePickerController*)p {
-    AVCaptureDevice *device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+    AVCaptureDevice *device = nil;
+    if (SYSTEM_VERSION_LESS_THAN(@"10")) {
+        device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+    } else {
+        if (SYSTEM_VERSION_LESS_THAN(@"10.3")) {
+            device = [AVCaptureDevice defaultDeviceWithDeviceType:AVCaptureDeviceTypeBuiltInDuoCamera
+                                                        mediaType:AVMediaTypeVideo
+                                                         position:AVCaptureDevicePositionBack];
+        } else {
+            device = [AVCaptureDevice defaultDeviceWithDeviceType:AVCaptureDeviceTypeBuiltInDualCamera
+                                                        mediaType:AVMediaTypeVideo
+                                                         position:AVCaptureDevicePositionBack];
+        }
+        if (!device) {
+            device = [AVCaptureDevice defaultDeviceWithDeviceType:AVCaptureDeviceTypeBuiltInWideAngleCamera
+                                                        mediaType:AVMediaTypeVideo
+                                                         position:AVCaptureDevicePositionBack];
+        }
+    }
     [device lockForConfiguration:nil];
     if (kFlashDataTypeTorch == _type && [device isTorchModeSupported:AVCaptureTorchModeOn]) {
         [device setTorchMode:AVCaptureTorchModeOn];
@@ -936,14 +963,7 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     }
     [device unlockForConfiguration];
 
-    if ([[[UIDevice currentDevice] systemVersion] compare:@"10" options:NSNumericSearch] == NSOrderedDescending) {
-        // NOTE: iOS 10 bug, requires camera controls to be shown before being able to set flash, the controls show/hide so fast, it's invisible to see in real life
-        p.showsCameraControls = YES;
-        p.cameraFlashMode = _mode;
-        p.showsCameraControls = NO;
-    } else {
-        p.cameraFlashMode = _mode;
-    }
+    [p setCameraFlashMode:_mode];
     b.tag = _mode;
     b.layer.borderUIColor = _color;
     [b setTitleColor:_color forState:UIControlStateNormal];
