@@ -963,7 +963,14 @@ typedef NS_ENUM(NSInteger, FlashDataType) {
     }
     [device unlockForConfiguration];
 
-    [p setCameraFlashMode:_mode];
+    if (SYSTEM_VERSION_LESS_THAN(@"10")) {
+        p.cameraFlashMode = _mode;
+    } else {
+        // NOTE: iOS 10 bug, requires camera controls to be shown before being able to set flash, the controls show/hide so fast, it's invisible to see in real life
+        p.showsCameraControls = YES;
+        p.cameraFlashMode = _mode;
+        p.showsCameraControls = NO;
+    }
     b.tag = _mode;
     b.layer.borderUIColor = _color;
     [b setTitleColor:_color forState:UIControlStateNormal];
