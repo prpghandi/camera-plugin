@@ -90,8 +90,8 @@
 	    <uses-permission android:name="android.permission.FLASHLIGHT" />
 	    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 	    <uses-feature android:name="android.hardware.camera" />
-	    <uses-feature android:name="android.hardware.camera.autofocus" />
-	    <uses-feature android:name="android.hardware.camera.flash" />
+	    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+	    <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
     </config-file>
 
     <resource-file src="src/android/round_btn_large_ppw_camera.xml" target="res/drawable/round_btn_large_ppw_camera.xml" />
