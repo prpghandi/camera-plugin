@@ -18,7 +18,7 @@
 	</js-module>
 
 	<engines>
-		<engine name="cordova" version=">=3.1.0" />
+		<engine name="cordova" version=">=4.0.0" />
 	</engines>
 
 	<platform name="ios">
