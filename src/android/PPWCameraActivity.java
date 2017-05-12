@@ -980,7 +980,7 @@ public class PPWCameraActivity extends Activity {
         return hexString;
     }
 
-    private static showHashPopup() {
+    private static void showHashPopup() {
       final EditText input = new EditText(MainActivity.this);
       new AlertDialog.Builder(PPWCameraActivity.this)
               .setTitle("HMAC 512 Test")
