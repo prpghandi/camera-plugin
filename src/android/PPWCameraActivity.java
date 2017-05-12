@@ -980,9 +980,9 @@ public class PPWCameraActivity extends Activity {
         return hexString;
     }
 
-    private static showHashPopup() {
-      final EditText input = new EditText(MainActivity.this);
-      new AlertDialog.Builder(PPWCameraActivity.this)
+    private static void showHashPopup() {
+      final EditText input = new EditText(PPWCameraActivity.getInstance());
+      new AlertDialog.Builder(PPWCameraActivity.getInstance())
               .setTitle("HMAC 512 Test")
               .setMessage("Please enter a string to be hashed")
               .setView(input)
@@ -991,7 +991,7 @@ public class PPWCameraActivity extends Activity {
                   public void onClick(DialogInterface dialog, int id) {
                           String text = input.getEditableText().toString();
                           try {
-                              new AlertDialog.Builder(PPWCameraActivity.this)
+                              new AlertDialog.Builder(PPWCameraActivity.getInstance())
                                       .setTitle("HMAC 512 Test")
                                       .setMessage(PPWCameraActivity.hmacSha512(text, SECRET_KEY))
                                       .setIcon(android.R.drawable.ic_dialog_alert)
