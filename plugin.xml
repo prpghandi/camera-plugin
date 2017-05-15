@@ -3,7 +3,7 @@
 		xmlns:android="http://schemas.android.com/apk/res/android"
 		xmlns:rim="http://www.blackberry.com/ns/widgets"
 		id="com.appnovation.ppw-camera"
-		version="1.0.35">
+		version="1.0.36">
 
 	<name>PPW Camera</name>
 	<description>PhoneGap plugin to support a custom camera overlay</description>
@@ -16,10 +16,6 @@
 	<js-module src="www/ppw_camera.js" name="PPWCamera">
 		<clobbers target="navigator.PPWCamera" />
 	</js-module>
-
-	<engines>
-		<engine name="cordova" version=">=6.5.0" />
-	</engines>
 
 	<platform name="ios">
 
