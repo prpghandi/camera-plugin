@@ -64,7 +64,7 @@
 
 	<platform name="android">
 
-    <config-file target="AndroidManifest.xml" parent="/manifest/application" parent="/*">
+    <config-file target="AndroidManifest.xml" parent="/manifest/application" >
       <activity android:label="PPWCameraActivity" android:name="com.appnovation.ppw_camera.PPWCameraActivity" android:screenOrientation="sensorLandscape" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
       </activity>
     </config-file>
@@ -75,13 +75,13 @@
       </feature>
     </config-file>
 
-    <source-file src="src/android/PPWCamera.java" target-dir="src/com/appnovation/ppw_camera" />
-    <source-file src="src/android/PPWCameraActivity.java" target-dir="src/com/appnovation/ppw_camera" />
-    <source-file src="src/android/PPWCameraPreview.java" target-dir="src/com/appnovation/ppw_camera" />
-    <source-file src="src/android/activity_ppw_camera.xml" target-dir="res/layout"/>
-    <source-file src="src/android/sanselan-0.97-incubator.jar" target-dir="libs" />
+    <resource-file src="src/android/PPWCamera.java" target-dir="src/com/appnovation/ppw_camera" />
+    <resource-file src="src/android/PPWCameraActivity.java" target-dir="src/com/appnovation/ppw_camera" />
+    <resource-file src="src/android/PPWCameraPreview.java" target-dir="src/com/appnovation/ppw_camera" />
+    <resource-file src="src/android/activity_ppw_camera.xml" target-dir="res/layout"/>
+    <resource-file src="src/android/sanselan-0.97-incubator.jar" target-dir="libs" />
 
-    <config-file target="AndroidManifest.xml" parent="/*">
+    <config-file target="AndroidManifest.xml" parent="/manifest">
 	    <uses-permission android:name="android.permission.CAMERA" />
 	    <uses-permission android:name="android.permission.FLASHLIGHT" />
 	    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
