@@ -63,6 +63,8 @@
 	</platform>
 
 	<platform name="android">
+		
+	<edit-config file="app/src/main/AndroidManifest.xml" mode="merge" target="/manifest/application" />	
 
     <config-file target="AndroidManifest.xml" parent="/manifest/application">
       <activity android:label="PPWCameraActivity" android:name="com.appnovation.ppw_camera.PPWCameraActivity" android:screenOrientation="sensorLandscape" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
