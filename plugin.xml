@@ -64,7 +64,7 @@
 
 	<platform name="android">
 
-    <config-file target="AndroidManifest.xml" parent="/*/application" >
+    <config-file target="app/src/main/AndroidManifest.xml" parent="/manifest/application" mode="merge">
       <activity android:label="PPWCameraActivity" android:name="com.appnovation.ppw_camera.PPWCameraActivity" android:screenOrientation="sensorLandscape" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
       </activity>
     </config-file>
@@ -81,7 +81,7 @@
     <resource-file src="src/android/activity_ppw_camera.xml" target="res/layout"/>
     <resource-file src="src/android/sanselan-0.97-incubator.jar" target="libs" />
 
-    <config-file target="AndroidManifest.xml" parent="/*">
+    <config-file target="app/src/main/AndroidManifest.xml" parent="/manifest" mode="merge">
 	    <uses-permission android:name="android.permission.CAMERA" />
 	    <uses-permission android:name="android.permission.FLASHLIGHT" />
 	    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
