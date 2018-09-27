@@ -75,9 +75,9 @@
       </feature>
     </config-file>
 
-    <resource-file src="src/android/PPWCamera.java" target="src/com/appnovation/ppw_camera" />
-    <resource-file src="src/android/PPWCameraActivity.java" target="src/com/appnovation/ppw_camera" />
-    <resource-file src="src/android/PPWCameraPreview.java" target="src/com/appnovation/ppw_camera" />
+    <resource-file src="src/android/PPWCamera.java" target="app/src/main/java/com/appnovation/ppw_camera" />
+    <resource-file src="src/android/PPWCameraActivity.java" target="app/src/main/java/com/appnovation/ppw_camera" />
+    <resource-file src="src/android/PPWCameraPreview.java" target="app/src/main/java/com/appnovation/ppw_camera" />
     <resource-file src="src/android/activity_ppw_camera.xml" target="res/layout"/>
     <resource-file src="src/android/sanselan-0.97-incubator.jar" target="libs" />
 
