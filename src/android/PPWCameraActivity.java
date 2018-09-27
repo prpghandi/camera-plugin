@@ -3,12 +3,19 @@ package com.appnovation.ppw_camera;
 import org.apache.cordova.LOG;
 import org.apache.cordova.PluginResult;
 
-import org.apache.sanselan.Sanselan;
+import org.apache.commons.imaging.Sanselan;
+import org.apache.commons.imaging.formats.jpeg.exifRewrite.ExifRewriter;
+import org.apache.commons.imaging.formats.tiff.write.TiffOutputDirectory;
+import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
+import org.apache.commons.imaging.formats.tiff.TiffImageMetadata;
+import org.apache.commons.imaging.formats.jpeg.JpegImageMetadata;
+
+/*import org.apache.sanselan.Sanselan;
 import org.apache.sanselan.formats.jpeg.exifRewrite.ExifRewriter;
 import org.apache.sanselan.formats.tiff.write.TiffOutputDirectory;
 import org.apache.sanselan.formats.tiff.write.TiffOutputSet;
 import org.apache.sanselan.formats.tiff.TiffImageMetadata;
-import org.apache.sanselan.formats.jpeg.JpegImageMetadata;
+import org.apache.sanselan.formats.jpeg.JpegImageMetadata;*/
 
 import android.app.Activity;
 import android.app.AlertDialog;
