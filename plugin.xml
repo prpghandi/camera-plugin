@@ -75,11 +75,11 @@
       </feature>
     </config-file>
 
-    <resource-file src="src/android/PPWCamera.java" target-dir="src/com/appnovation/ppw_camera" />
-    <resource-file src="src/android/PPWCameraActivity.java" target-dir="src/com/appnovation/ppw_camera" />
-    <resource-file src="src/android/PPWCameraPreview.java" target-dir="src/com/appnovation/ppw_camera" />
-    <resource-file src="src/android/activity_ppw_camera.xml" target-dir="res/layout"/>
-    <resource-file src="src/android/sanselan-0.97-incubator.jar" target-dir="libs" />
+    <resource-file src="src/android/PPWCamera.java" target="src/com/appnovation/ppw_camera" />
+    <resource-file src="src/android/PPWCameraActivity.java" target="src/com/appnovation/ppw_camera" />
+    <resource-file src="src/android/PPWCameraPreview.java" target="src/com/appnovation/ppw_camera" />
+    <resource-file src="src/android/activity_ppw_camera.xml" target="res/layout"/>
+    <resource-file src="src/android/sanselan-0.97-incubator.jar" target="libs" />
 
     <config-file target="AndroidManifest.xml" parent="/manifest">
 	    <uses-permission android:name="android.permission.CAMERA" />
